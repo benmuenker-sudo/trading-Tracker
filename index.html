@@ -2,7 +2,16 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06080d">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Krypto Radar">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>Krypto Radar</title>
 <style>
 :root{--bg:#06080d;--panel:#0b0f17;--card:rgba(255,255,255,.035);--card2:rgba(255,255,255,.075);--line:rgba(255,255,255,.08);--text:#eaf0fb;--mute:#8592ab;--up:#20d08a;--down:#ff5470;--acc:#7c5cff;--acc2:#22d3ee;--gold:#ffc857;--r:16px}
@@ -147,6 +156,17 @@ td .c{display:flex;align-items:center;gap:9px}td .c img,td .c .ph{width:24px;hei
 .cv{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
 @media(max-width:700px){.cv{grid-template-columns:1fr}}
 .metal{font-size:19px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--card2);flex:none}
+/* Handy & Tablet: sichere Ränder (iPhone-Notch), grössere Tippflächen, kein Zoom beim Tippen */
+.top-in{padding-top:max(10px,env(safe-area-inset-top));padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}
+@media(max-width:900px){
+ .side{padding-bottom:max(6px,env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+ .side button{min-height:46px}
+ main{padding:14px 12px calc(84px + env(safe-area-inset-bottom))}
+ input,select,textarea{font-size:16px!important}
+ .btn,.chip{min-height:38px}
+}
+@media(prefers-reduced-motion:reduce){.tape-in{animation:none}html{scroll-behavior:auto}}
+.inst{display:none}
 </style>
 </head>
 <body>
@@ -156,6 +176,7 @@ td .c{display:flex;align-items:center;gap:9px}td .c img,td .c .ph{width:24px;hei
     <div class="sbox"><input id="gs" placeholder="Coin, Aktie, ETF, Gold, Währung …  ( / )" autocomplete="off" oninput="gsearch(this.value)" onkeydown="if(event.key==='Enter')gsearchEnter(this.value)"><div id="sr"></div></div>
     <div class="sp"></div>
     <select class="curs" id="cur" title="Anzeige-Währung" onchange="setCur(this.value)"></select>
+    <button class="curs inst" id="inst" onclick="installApp()" title="Als App installieren">⬇ App</button>
     <div class="who" onclick="go('profil')"><div class="av" id="av">G</div><span id="wn">Gast</span></div>
   </div>
   <div class="tape"><div class="tape-in" id="tape"></div></div>
@@ -269,7 +290,7 @@ function storageCards(){
   <p class="sub">Watchlist, Mengen und Alarme werden bei jeder Änderung automatisch in diese Datei geschrieben. Tipp: Lege sie in OneDrive/Dokumente – dann ist sie zusätzlich in der Cloud gesichert. Nach einem Neustart des Browsers einmal „Erneut verbinden“ klicken.</p>`
   :`<p class="sub">Dein Browser (Firefox/Safari) kann keine Datei automatisch speichern – das geht in Chrome und Edge. Nutze hier stattdessen „Exportieren/Importieren“.</p>`}</div>
   <div class="glass"><h2 style="margin-top:0">👨‍👩‍👧 Mit Familie teilen</h2>
-  <p class="sub"><b>1.</b> Schick die Datei <b>krypto-tracker.html</b> (WhatsApp, E-Mail, USB) – zum Öffnen reicht ein Doppelklick.<br><b>2.</b> Watchlist übertragen per Code:</p>
+  <p class="sub"><b>1.</b> Schick den <b>Link zur Seite</b> (WhatsApp, E-Mail). Am Handy: im Browser-Menü „Zum Startbildschirm hinzufügen“ (iPhone: Teilen ▸ „Zum Home-Bildschirm“), am PC Chrome/Edge: Button „⬇ App“ oben.<br><b>2.</b> Watchlist übertragen per Code:</p>
   <div class="bar"><button class="btn" onclick="copyCode()">📋 Meine Watchlist als Code kopieren</button></div>
   <div class="bar"><input class="inp" id="sc" placeholder="Code einfügen (KR1:…)" style="min-width:240px"><button class="btn g" onclick="importCode($('sc').value)">Code einfügen</button></div>
   <p class="sub">Der Code enthält nur die Watchlist – keine Mengen, Kaufkurse oder Schlüssel. Jede Person hat ihr eigenes Profil im eigenen Browser. Tipp: Dein Vater sollte im Profil einen <a href="https://finnhub.io/register" target="_blank" rel="noopener">eigenen kostenlosen Finnhub-Key</a> eintragen, sonst teilt ihr euch das Abfrage-Limit.</p></div>`;
@@ -893,6 +914,13 @@ function render(keep){
   if(keep&&id&&$(id)&&/INPUT/.test($(id).tagName)){$(id).focus();try{$(id).setSelectionRange(sp,sp)}catch(e){}}
   if(keep)window.scrollTo(0,sy);
 }
+/* =====================  APP-INSTALLATION / OFFLINE  ===================== */
+let instEv=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();instEv=e;$('inst').style.display='inline-block'});
+window.addEventListener('appinstalled',()=>{instEv=null;$('inst').style.display='none'});
+function installApp(){if(!instEv)return;instEv.prompt();instEv.userChoice.finally(()=>{instEv=null;$('inst').style.display='none'})}
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+
 applyAcc();nav();render();
 loadCoins();tabLoad();want(W('s'),true);loadFx();loadMetals();initStore();
 setInterval(()=>{if(document.hidden)return;loadCoins(true);tabLoad();want(W('s'),true);loadMetals();checkAlerts()},4*60*1000);
