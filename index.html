@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#06080d">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#06080d" id="tcm">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Krypto Radar">
@@ -14,29 +14,29 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>Krypto Radar</title>
 <style>
-:root{--bg:#06080d;--panel:#0b0f17;--card:rgba(255,255,255,.035);--card2:rgba(255,255,255,.075);--line:rgba(255,255,255,.08);--text:#eaf0fb;--mute:#8592ab;--up:#20d08a;--down:#ff5470;--acc:#7c5cff;--acc2:#22d3ee;--gold:#ffc857;--r:16px}
+:root{--bg:#06080d;--panel:#0b0f17;--card:rgba(255,255,255,.035);--card2:rgba(255,255,255,.075);--line:rgba(255,255,255,.08);--text:#eaf0fb;--mute:#8592ab;--up:#20d08a;--down:#ff5470;--acc:#7c5cff;--acc2:#22d3ee;--gold:#ffc857;--pop:#0f1420;--top:rgba(6,8,13,.78);--th:#0d121c;--tape:rgba(0,0,0,.25);--shadow:rgba(0,0,0,.6);--r:16px}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;color:var(--text);font:14.5px/1.5 Inter,system-ui,Segoe UI,sans-serif;background:var(--bg);min-height:100vh}
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(900px 520px at 8% -8%,color-mix(in srgb,var(--acc) 30%,transparent),transparent 60%),radial-gradient(800px 500px at 100% 0%,color-mix(in srgb,var(--acc2) 18%,transparent),transparent 60%),var(--bg)}
 a{color:var(--acc2);text-decoration:none}a:hover{text-decoration:underline}
 button,input,select{font:inherit;color:inherit}
-select option{background:#0f1420}
+select option{background:var(--pop)}
 ::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
 
-.top{position:sticky;top:0;z-index:30;backdrop-filter:blur(18px);background:rgba(6,8,13,.72);border-bottom:1px solid var(--line)}
+.top{position:sticky;top:0;z-index:30;backdrop-filter:blur(18px);background:var(--top);border-bottom:1px solid var(--line)}
 .top-in{padding:10px 18px;display:flex;align-items:center;gap:12px}
 .logo{font-weight:800;font-size:19px;white-space:nowrap;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .sbox{position:relative;flex:1;max-width:460px}
 .sbox input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 14px;outline:none}
 .sbox input:focus{border-color:var(--acc)}
-#sr{position:absolute;top:44px;left:0;right:0;background:#0f1420;border:1px solid var(--line);border-radius:14px;padding:6px;display:none;box-shadow:0 20px 50px rgba(0,0,0,.6);max-height:70vh;overflow:auto;z-index:50}
+#sr{position:absolute;top:44px;left:0;right:0;background:var(--pop);border:1px solid var(--line);border-radius:14px;padding:6px;display:none;box-shadow:0 20px 50px rgba(0,0,0,.6);max-height:70vh;overflow:auto;z-index:50}
 #sr .it{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;cursor:pointer}#sr .it:hover{background:var(--card2)}
 .sp{flex:1}
 .who{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);padding:5px 12px 5px 6px;border-radius:30px;cursor:pointer;white-space:nowrap}
 .av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));display:grid;place-items:center;font-weight:700;font-size:12px;color:#fff}
 .curs{background:var(--card);border:1px solid var(--line);border-radius:30px;padding:6px 10px;outline:none;cursor:pointer;font-weight:600}
-.tape{overflow:hidden;border-top:1px solid var(--line);background:rgba(0,0,0,.25);white-space:nowrap}
+.tape{overflow:hidden;border-top:1px solid var(--line);background:var(--tape);white-space:nowrap}
 .tape-in{display:inline-block;padding:6px 0;animation:tp 120s linear infinite}
 .tape:hover .tape-in{animation-play-state:paused}
 .tape span{margin:0 18px;font-size:12.5px;color:var(--mute)}.tape b{color:var(--text);font-weight:600;margin-right:5px}
@@ -99,7 +99,7 @@ svg.sp7{width:100%;height:38px;margin-top:8px;display:block}
 table{width:100%;border-collapse:collapse;min-width:900px}
 th,td{padding:10px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
 .tl th:nth-child(-n+3),.tl td:nth-child(-n+3){text-align:left}
-th{color:var(--mute);font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none;position:sticky;top:0;background:#0d121c}
+th{color:var(--mute);font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--th)}
 th:hover{color:var(--text)}
 tbody tr{cursor:pointer}tbody tr:hover{background:var(--card2)}tbody tr:last-child td{border-bottom:0}
 td .c{display:flex;align-items:center;gap:9px}td .c img,td .c .ph{width:24px;height:24px;font-size:11px}
@@ -113,7 +113,7 @@ td .c{display:flex;align-items:center;gap:9px}td .c img,td .c .ph{width:24px;hei
 .note.b{border-color:var(--acc2);background:rgba(34,211,238,.07)}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.66);backdrop-filter:blur(7px);z-index:80;display:none;place-items:center;padding:14px}
 .modal.on{display:grid}
-.mbox{background:#0c111b;border:1px solid var(--line);border-radius:22px;padding:22px;max-width:780px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 30px 90px rgba(0,0,0,.7)}
+.mbox{background:var(--pop);border:1px solid var(--line);border-radius:22px;padding:22px;max-width:780px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 30px 90px rgba(0,0,0,.7)}
 .x{float:right;background:var(--card);border:1px solid var(--line);border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;color:var(--mute)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:6px 26px}
 @media(max-width:700px){.two{grid-template-columns:1fr}.sp{display:none}}
@@ -122,7 +122,7 @@ td .c{display:flex;align-items:center;gap:9px}td .c img,td .c .ph{width:24px;hei
 @keyframes sh{to{background-position:-200% 0}}
 .hold{width:96px;padding:5px 8px;min-width:0;border-radius:8px}
 .heat{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:58px;grid-auto-flow:dense;gap:4px}
-.tile{border-radius:10px;padding:7px 9px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;overflow:hidden;transition:.15s;border:1px solid rgba(255,255,255,.06)}
+.tile{color:#fff;border-radius:10px;padding:7px 9px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;overflow:hidden;transition:.15s;border:1px solid rgba(255,255,255,.06)}
 .tile:hover{transform:scale(1.03);z-index:2;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .tile b{font-size:13px;text-transform:uppercase}.tile span{font-size:12px;opacity:.92}
 .t1{grid-column:span 4;grid-row:span 3}.t1 b{font-size:22px}.t1 span{font-size:16px}
@@ -132,7 +132,7 @@ td .c{display:flex;align-items:center;gap:9px}td .c img,td .c .ph{width:24px;hei
 @media(max-width:700px){.heat{grid-template-columns:repeat(6,1fr)}.t1{grid-column:span 6}.t2{grid-column:span 3}.t3,.t4{grid-column:span 2}}
 .ch{position:relative;height:230px;margin:10px 0 4px}
 .ch svg{width:100%;height:100%;display:block}
-.ch .tip{position:absolute;top:0;pointer-events:none;background:#000c;border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:12px;display:none;white-space:nowrap;transform:translateX(-50%)}
+.ch .tip{position:absolute;top:0;pointer-events:none;background:var(--pop);border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:12px;display:none;white-space:nowrap;transform:translateX(-50%)}
 .lst .li{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer}.lst .li:last-child{border:0}.lst .li:hover{background:var(--card2)}
 .lst .li .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lst img,.lst .ph{width:26px;height:26px;font-size:11px}
@@ -147,7 +147,7 @@ td .c{display:flex;align-items:center;gap:9px}td .c img,td .c .ph{width:24px;hei
 .dv:after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--line)}
 .dv i{position:absolute;top:0;height:100%;border-radius:6px}
 #toasts{position:fixed;right:16px;top:100px;z-index:120;display:flex;flex-direction:column;gap:8px}
-.toast{background:#101725;border:1px solid var(--acc);border-radius:12px;padding:10px 14px;box-shadow:0 10px 40px rgba(0,0,0,.6);max-width:320px;animation:in .3s}
+.toast{background:var(--pop);border:1px solid var(--acc);border-radius:12px;padding:10px 14px;box-shadow:0 10px 40px rgba(0,0,0,.6);max-width:320px;animation:in .3s}
 @keyframes in{from{opacity:0;transform:translateX(30px)}}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .donut{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
@@ -167,6 +167,62 @@ td .c{display:flex;align-items:center;gap:9px}td .c img,td .c .ph{width:24px;hei
 }
 @media(prefers-reduced-motion:reduce){.tape-in{animation:none}html{scroll-behavior:auto}}
 .inst{display:none}
+/* Helles Design */
+:root[data-theme=light]{--bg:#f3f5fa;--panel:#fff;--card:#fff;--card2:rgba(20,30,70,.06);--line:rgba(20,30,70,.11);--text:#151c30;--mute:#5a6680;--up:#0a9b61;--down:#d42f4d;--gold:#b7791f;--pop:#fff;--top:rgba(255,255,255,.85);--th:#eef1f7;--tape:rgba(20,30,70,.04);--shadow:rgba(20,30,70,.18)}
+:root[data-theme=light] body::before{background:radial-gradient(900px 520px at 8% -8%,color-mix(in srgb,var(--acc) 14%,transparent),transparent 60%),radial-gradient(800px 500px at 100% 0%,color-mix(in srgb,var(--acc2) 10%,transparent),transparent 60%),var(--bg)}
+:root[data-theme=light] .glass{box-shadow:0 1px 2px rgba(20,30,70,.06),0 6px 18px rgba(20,30,70,.05);backdrop-filter:none}
+:root[data-theme=light] .chip.on,:root[data-theme=light] .side button.on{color:var(--text)}
+:root[data-theme=light] .coin:hover{background:#fff}
+:root[data-theme=light] .tag.hot{color:#c0264a}:root[data-theme=light] .tag.good{color:#0a7d4e}
+:root[data-theme=light] .gauge i,:root[data-theme=light] .rng i{background:#151c30;box-shadow:0 0 0 2px #fff}
+.tbtn{background:var(--card);border:1px solid var(--line);border-radius:50%;width:38px;height:38px;font-size:17px;cursor:pointer;display:grid;place-items:center;flex:none;padding:0}
+/* Unterer Menüstreifen (Handy) */
+#bnav{display:none}
+#more{display:none}
+@media(max-width:900px){
+ .side{display:none!important}
+ #bnav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:40;background:var(--top);backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:6px 6px max(8px,env(safe-area-inset-bottom))}
+ #bnav button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border-radius:14px;color:var(--mute);font-size:11.5px;cursor:pointer;min-height:54px}
+ #bnav button i{font-style:normal;font-size:21px;line-height:1}
+ #bnav button.on{color:var(--text);background:color-mix(in srgb,var(--acc) 22%,transparent)}
+ #more.on{display:block;position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;padding:max(16px,env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom))}
+ #more h3{margin:22px 4px 10px;font-size:12px;letter-spacing:1.3px;color:var(--mute)}
+ #more .mg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+ #more .mg button{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text);font-size:12.5px;cursor:pointer;text-align:center;min-height:84px}
+ #more .mg button i{font-style:normal;font-size:24px}
+ #more .mg button.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 18%,transparent)}
+ #more .mtop{display:flex;align-items:center;justify-content:space-between}
+ #more .mtop b{font-size:20px}
+ .who span{display:none}.who{padding:4px}
+ .top-in{gap:8px}
+}
+/* Handy: mehr Luft, grössere Schrift, weniger Gedränge */
+@media(max-width:700px){
+ body{font-size:16px;line-height:1.55}
+ main{padding:16px 14px calc(96px + env(safe-area-inset-bottom))}
+ h2{margin:32px 0 14px;font-size:19px}
+ .glass{padding:18px;border-radius:20px}
+ .grid,.cols{gap:16px;grid-template-columns:1fr}
+ .stats{grid-template-columns:1fr 1fr;gap:12px}
+ .stat .l{font-size:11px}.stat .v{font-size:20px}
+ .stats>.glass:first-child:nth-last-child(odd){grid-column:1/-1}
+ .big{font-size:24px}
+ .rw{font-size:14px;margin-top:6px}
+ .sub{font-size:14px}
+ .bar{gap:10px;margin-bottom:16px}
+ .chip{padding:9px 15px;font-size:14px}
+ .btn{padding:12px 18px;font-size:15px}.btn.s{padding:8px 13px;font-size:14px}
+ .inp{padding:12px 14px}
+ .note{font-size:14px;padding:13px 15px}
+ .tag{font-size:12px;padding:3px 10px}
+ .news .glass{gap:12px;padding:14px}.news img{width:84px;height:84px}.news h3{font-size:15.5px}.news p{font-size:14px}
+ table{min-width:760px}th,td{padding:14px 14px}
+ .mbox{border-radius:24px;padding:20px}
+ .ch{height:210px}
+ #toasts{left:12px;right:12px;top:auto;bottom:calc(92px + env(safe-area-inset-bottom))}
+ .toast{max-width:none}
+ .sbox input{padding:11px 14px}
+}
 </style>
 </head>
 <body>
@@ -176,12 +232,13 @@ td .c{display:flex;align-items:center;gap:9px}td .c img,td .c .ph{width:24px;hei
     <div class="sbox"><input id="gs" placeholder="Coin, Aktie, ETF, Gold, Währung …  ( / )" autocomplete="off" oninput="gsearch(this.value)" onkeydown="if(event.key==='Enter')gsearchEnter(this.value)"><div id="sr"></div></div>
     <div class="sp"></div>
     <select class="curs" id="cur" title="Anzeige-Währung" onchange="setCur(this.value)"></select>
+    <button class="tbtn" id="thm" onclick="toggleTheme()" title="Hell / Dunkel" aria-label="Hell oder Dunkel umschalten">🌙</button>
     <button class="curs inst" id="inst" onclick="installApp()" title="Als App installieren">⬇ App</button>
     <div class="who" onclick="go('profil')"><div class="av" id="av">G</div><span id="wn">Gast</span></div>
   </div>
   <div class="tape"><div class="tape-in" id="tape"></div></div>
 </div>
-<div class="layout"><div class="side" id="nav"></div><main id="view"><div id="v1"></div><div id="vtv"></div><div id="v2"></div></main></div>
+<div class="layout"><div class="side" id="nav"></div><div id="bnav"></div><div id="more"></div><main id="view"><div id="v1"></div><div id="vtv"></div><div id="v2"></div></main></div>
 <div class="modal" id="modal" onclick="if(event.target===this)closeM()"><div class="mbox" id="mbox"></div></div>
 <div id="toasts"></div>
 
@@ -655,7 +712,7 @@ function imp(f){if(!f)return;f.text().then(t=>{try{const o=JSON.parse(t);S.watch
 /* =====================  DETAILS  ===================== */
 const rw=(l,v)=>`<div class="rw"><span>${l}</span><b>${v}</b></div>`;
 function tvMini(elId,symbol,range){
-  try{const cfg={symbol,width:'100%',height:300,locale:'de_DE',dateRange:range||'3M',colorTheme:'dark',isTransparent:true,autosize:false,largeChartUrl:'',chartOnly:false,noTimeScale:false};
+  try{const cfg={symbol,width:'100%',height:300,locale:'de_DE',dateRange:range||'3M',colorTheme:themeNow(),isTransparent:true,autosize:false,largeChartUrl:'',chartOnly:false,noTimeScale:false};
     const w=document.createElement('div');w.className='tradingview-widget-container';const sc=document.createElement('script');sc.src='https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';sc.async=true;sc.text=JSON.stringify(cfg);w.appendChild(sc);$(elId).appendChild(w)}catch(e){}
 }
 const alertBar=(k,id)=>`<div class="bar" style="margin-top:12px"><input class="inp" id="mal" type="number" step="any" placeholder="Alarm-Preis ${k==='f'?'':cs()}" style="min-width:120px"><button class="btn g s" onclick="modalAlert('${k}','${id}',1)">🔔 über</button><button class="btn g s" onclick="modalAlert('${k}','${id}',0)">🔔 unter</button></div>`;
@@ -903,11 +960,12 @@ function setTv(key){
   const h=$('vtv');if(h.dataset.k===(key||''))return;h.dataset.k=key||'';h.innerHTML='';if(!key)return;
   const w=document.createElement('div');w.className='tradingview-widget-container tvbox';const inner=document.createElement('div');inner.className='tradingview-widget-container__widget';w.appendChild(inner);
   const sc=document.createElement('script');sc.src='https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js';sc.async=true;
-  sc.text=JSON.stringify({colorTheme:'dark',dateRange:'1D',showChart:true,locale:'de_DE',largeChartUrl:'',isTransparent:true,showSymbolLogo:true,showFloatingTooltip:true,width:'100%',height:460,plotLineColorGrowing:'rgba(32,208,138,1)',plotLineColorFalling:'rgba(255,84,112,1)',gridLineColor:'rgba(255,255,255,0.06)',scaleFontColor:'rgba(133,146,171,1)',belowLineFillColorGrowing:'rgba(32,208,138,0.12)',belowLineFillColorFalling:'rgba(255,84,112,0.12)',belowLineFillColorGrowingBottom:'rgba(32,208,138,0)',belowLineFillColorFallingBottom:'rgba(255,84,112,0)',symbolActiveColor:'rgba(124,92,255,0.12)',tabs:TVTABS[key]});
+  sc.text=JSON.stringify({colorTheme:themeNow(),dateRange:'1D',showChart:true,locale:'de_DE',largeChartUrl:'',isTransparent:true,showSymbolLogo:true,showFloatingTooltip:true,width:'100%',height:460,plotLineColorGrowing:'rgba(32,208,138,1)',plotLineColorFalling:'rgba(255,84,112,1)',gridLineColor:'rgba(255,255,255,0.06)',scaleFontColor:'rgba(133,146,171,1)',belowLineFillColorGrowing:'rgba(32,208,138,0.12)',belowLineFillColorFalling:'rgba(255,84,112,0.12)',belowLineFillColorGrowingBottom:'rgba(32,208,138,0)',belowLineFillColorFallingBottom:'rgba(255,84,112,0)',symbolActiveColor:'rgba(124,92,255,0.12)',tabs:TVTABS[key]});
   w.appendChild(sc);h.appendChild(w);
 }
 function applyAcc(){const a=ACC[S.profile.acc]||ACC.violett;document.documentElement.style.setProperty('--acc',a[0]);document.documentElement.style.setProperty('--acc2',a[1])}
 function nav(){$('nav').innerHTML=TABS.map(t=>t[0]==='grp'?`<div class="grp">${t[1]}</div>`:`<button class="${t[0]===S.tab?'on':''}" onclick="go('${t[0]}')"><i>${t[1]}</i>${t[2]}</button>`).join('')+'<div class="foot">Kein Anlagetipp.<br>Kostenlose Daten: CoinGecko · Finnhub · DexScreener · DeFiLlama · EZB · gold-api</div>';
+  $('bnav').innerHTML=bnavHtml();
   $('wn').textContent=S.profile.name||'Gast';$('av').textContent=(S.profile.name||'G')[0].toUpperCase();
   $('cur').innerHTML=Object.keys(CSYM).map(c=>`<option ${c===S.cur?'selected':''}>${c}</option>`).join('')}
 function go(t){S.tab=t;LS.s('tab',t);S.page=0;nav();render();tabLoad(t);window.scrollTo(0,0)}
@@ -921,6 +979,20 @@ function render(keep){
   if(keep&&id&&$(id)&&/INPUT/.test($(id).tagName)){$(id).focus();try{$(id).setSelectionRange(sp,sp)}catch(e){}}
   if(keep)window.scrollTo(0,sy);
 }
+/* =====================  HELL / DUNKEL  ===================== */
+const themeNow=()=>{const t=LS.g('theme','auto');return t==='auto'?(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'):t};
+function applyTheme(){const t=themeNow();document.documentElement.dataset.theme=t;const m=$('tcm');if(m)m.content=t==='light'?'#f3f5fa':'#06080d';const b=$('thm');if(b)b.textContent=t==='light'?'🌙':'☀️'}
+function toggleTheme(){LS.s('theme',themeNow()==='light'?'dark':'light');applyTheme();$('vtv').dataset.k='';render(true)}
+try{matchMedia('(prefers-color-scheme:light)').addEventListener('change',()=>{if(LS.g('theme','auto')==='auto'){applyTheme();$('vtv').dataset.k='';render(true)}})}catch(e){}
+/* =====================  HANDY-MENÜ  ===================== */
+const BN=['home','mhome','watch','news'];
+function moreOpen(){const m=$('more');m.classList.add('on');let h='<div class="mtop"><b>Menü</b><button class="tbtn" onclick="moreClose()" aria-label="Schließen">✕</button></div>',g=false;
+  TABS.forEach(t=>{if(t[0]==='grp'){if(g)h+='</div>';h+=`<h3>${t[1]}</h3><div class="mg">`;g=true}else h+=`<button class="${t[0]===S.tab?'on':''}" onclick="moreClose();go('${t[0]}')"><i>${t[1]}</i>${t[2]}</button>`});
+  m.innerHTML=h+'</div><p class="sub" style="margin-top:26px;text-align:center">Kein Anlagetipp.</p>'}
+function moreClose(){$('more').classList.remove('on')}
+function bnavHtml(){const T=Object.fromEntries(TABS.filter(t=>t[0]!=='grp').map(t=>[t[0],t]));const short={home:'Krypto',mhome:'Märkte',watch:'Watchlist',news:'News'};
+  return BN.map(k=>`<button class="${k===S.tab?'on':''}" onclick="go('${k}')"><i>${T[k][1]}</i>${short[k]}</button>`).join('')+`<button class="${BN.includes(S.tab)?'':'on'}" onclick="moreOpen()"><i>☰</i>Mehr</button>`}
+
 /* =====================  APP-INSTALLATION / OFFLINE  ===================== */
 let instEv=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();instEv=e;$('inst').style.display='inline-block'});
@@ -928,7 +1000,8 @@ window.addEventListener('appinstalled',()=>{instEv=null;$('inst').style.display=
 function installApp(){if(!instEv)return;instEv.prompt();instEv.userChoice.finally(()=>{instEv=null;$('inst').style.display='none'})}
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 
-applyAcc();nav();render();
+if(innerWidth<700)$('gs').placeholder='Suchen …';
+applyTheme();applyAcc();nav();render();
 loadCoins();tabLoad();want(W('s'),true);loadFx();loadMetals();initStore();
 setInterval(()=>{if(document.hidden)return;loadCoins(true);tabLoad();want(W('s'),true);loadMetals();checkAlerts()},4*60*1000);
 </script>
