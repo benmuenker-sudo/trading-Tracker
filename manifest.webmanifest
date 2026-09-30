@@ -1,0 +1,15 @@
+{
+  "name": "Krypto Radar",
+  "short_name": "Krypto Radar",
+  "description": "Krypto-, Aktien- und Märkte-Tracker mit lokaler Watchlist",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#06080d",
+  "theme_color": "#06080d",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
