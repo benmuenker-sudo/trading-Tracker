@@ -187,7 +187,7 @@ td .c{display:flex;align-items:center;gap:9px}td .c img,td .c .ph{width:24px;hei
 
 <script>
 /* =====================  KONFIG  ===================== */
-const DEFAULT_KEY='daujj4pr01qjfq584t0gdaujj4pr01qjfq584t10'; // Finnhub – nur lokal nutzen, Datei nicht öffentlich teilen
+const DEFAULT_KEY=''; // Kein Standard-Key: jede Person trägt im Profil ihren eigenen kostenlosen Finnhub-Key ein
 const CG='https://api.coingecko.com/api/v3',FH='https://finnhub.io/api/v1',DX='https://api.dexscreener.com',LL='https://api.llama.fi',FR='https://api.frankfurter.dev/v1',GA='https://api.gold-api.com/price';
 const TABS=[['grp','KRYPTO'],['home','🏠','Krypto-Übersicht'],['radar','🎯','Radar'],['coins','🪙','Alle Coins'],['dex','🧪','Neue Tokens'],['defi','🏦','DeFi'],
  ['grp','MÄRKTE'],['mhome','🌍','Märkte-Übersicht'],['aktien','📈','Aktien'],['etf','🧺','ETFs & Fonds'],['indizes','📊','Indizes'],['rohstoffe','🥇','Rohstoffe'],['devisen','💱','Devisen'],
@@ -293,7 +293,7 @@ function storageCards(){
   <p class="sub"><b>1.</b> Schick den <b>Link zur Seite</b> (WhatsApp, E-Mail). Am Handy: im Browser-Menü „Zum Startbildschirm hinzufügen“ (iPhone: Teilen ▸ „Zum Home-Bildschirm“), am PC Chrome/Edge: Button „⬇ App“ oben.<br><b>2.</b> Watchlist übertragen per Code:</p>
   <div class="bar"><button class="btn" onclick="copyCode()">📋 Meine Watchlist als Code kopieren</button></div>
   <div class="bar"><input class="inp" id="sc" placeholder="Code einfügen (KR1:…)" style="min-width:240px"><button class="btn g" onclick="importCode($('sc').value)">Code einfügen</button></div>
-  <p class="sub">Der Code enthält nur die Watchlist – keine Mengen, Kaufkurse oder Schlüssel. Jede Person hat ihr eigenes Profil im eigenen Browser. Tipp: Dein Vater sollte im Profil einen <a href="https://finnhub.io/register" target="_blank" rel="noopener">eigenen kostenlosen Finnhub-Key</a> eintragen, sonst teilt ihr euch das Abfrage-Limit.</p></div>`;
+  <p class="sub">Der Code enthält nur die Watchlist – keine Mengen, Kaufkurse oder Schlüssel. Jede Person hat ihr eigenes Profil im eigenen Browser. Jede Person braucht im Profil ihren <a href="https://finnhub.io/register" target="_blank" rel="noopener">eigenen kostenlosen Finnhub-Key</a> für Aktien und ETFs (Anleitung: Profil ▸ Finnhub-Key).</p></div>`;
 }
 
 /* =====================  HELFER  ===================== */
@@ -633,8 +633,14 @@ function vProfil(){
   <div class="bar"><input class="inp" id="pn" placeholder="Dein Name" value="${esc(p.name)}"><button class="btn" onclick="S.profile.name=$('pn').value.trim();save();nav();toast('Gespeichert ✔')">Speichern</button></div>
   <p class="sub" style="margin-bottom:6px">Anzeige-Währung (oben rechts umschaltbar)</p><div class="bar">${Object.keys(CSYM).map(c=>`<button class="chip ${S.cur===c?'on':''}" onclick="setCur('${c}')">${c}</button>`).join('')}</div>
   <p class="sub" style="margin-bottom:6px">Akzentfarbe</p><div class="bar">${Object.keys(ACC).map(k=>`<button class="chip ${p.acc===k?'on':''}" onclick="S.profile.acc='${k}';save();applyAcc();render()">${k}</button>`).join('')}</div>
-  <p class="sub" style="margin:12px 0 6px">Finnhub-Key für Aktien <span class="tag good">${p.key?'eigener Key':'Standard-Key aktiv'}</span></p>
-  <div class="bar"><input class="inp" id="pk" type="password" placeholder="leer = Standard-Key" value="${esc(p.key)}"><button class="btn" onclick="setKey($('pk').value)">Key speichern</button></div>
+  <div id="keyhelp" class="note b" style="margin:8px 0 12px;line-height:1.7"><b>So bekommst du deinen kostenlosen Key (ca. 2 Minuten):</b><br>
+  <b>1.</b> Öffne <a href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io/register</a> und melde dich kostenlos an (E-Mail oder Google-Konto). Keine Kreditkarte nötig.<br>
+  <b>2.</b> Nach der Anmeldung siehst du das <b>Dashboard</b>. Dort steht dein <b>API Key</b> – eine lange Reihe aus Buchstaben und Zahlen.<br>
+  <b>3.</b> Den Key kopieren, hier ins Feld einfügen und auf <b>„Key speichern“</b> tippen.<br>
+  <b>4.</b> Fertig – Aktien, ETFs und Indizes laden jetzt. Der Key bleibt nur in deinem Browser und wird beim Teilen nie mitgeschickt.<br>
+  <span class="sub">Krypto, Gold und Devisen funktionieren auch ohne Key. Der Gratis-Key erlaubt 60 Abfragen pro Minute; die App bremst sich selbst darunter.</span></div>
+  <p class="sub" style="margin:12px 0 6px">Finnhub-Key für Aktien <span class="tag good">${p.key?'eigener Key':'fehlt noch'}</span></p>
+  <div class="bar"><input class="inp" id="pk" type="password" placeholder="Key hier einfügen" value="${esc(p.key)}"><button class="btn" onclick="setKey($('pk').value)">Key speichern</button></div>
   <p class="sub"><a href="https://finnhub.io/register" target="_blank" rel="noopener">Eigenen kostenlosen Key holen ↗</a></p></div>
   <div class="glass"><h2 style="margin-top:0">💾 Sichern &amp; Umziehen</h2><p class="sub">Exportiere Watchlist, Portfolio, Alarme und Einstellungen als Datei und importiere sie auf einem anderen Gerät. Der API-Key ist nicht enthalten.</p>
   <div class="bar"><button class="btn" onclick="exp()">Exportieren</button><button class="btn g" onclick="$('imp').click()">Importieren</button><input type="file" id="imp" accept=".json" hidden onchange="imp(this.files[0])"></div>
@@ -760,7 +766,7 @@ function cg(path,ttl=0,map){
 const fhTs=[];
 async function fh(path,low){
   for(;;){const now=Date.now();while(fhTs.length&&now-fhTs[0]>60000)fhTs.shift();if(fhTs.length<(low?40:56))break;await sleep(700)}
-  fhTs.push(Date.now());const r=await fetch(FH+path+(path.includes('?')?'&':'?')+'token='+KEY());if(!r.ok)throw new Error(r.status);return r.json();
+  if(!KEY())throw new Error('kein Key');fhTs.push(Date.now());const r=await fetch(FH+path+(path.includes('?')?'&':'?')+'token='+KEY());if(!r.ok)throw new Error(r.status);return r.json();
 }
 function slim(c){const sp=(c.sparkline_in_7d&&c.sparkline_in_7d.price)||[];return{id:c.id,sym:c.symbol,name:c.name,img:c.image,price:c.current_price,mc:c.market_cap,rank:c.market_cap_rank,fdv:c.fully_diluted_valuation,vol:c.total_volume,hi:c.high_24h,lo:c.low_24h,p1:c.price_change_percentage_1h_in_currency,p24:c.price_change_percentage_24h_in_currency!=null?c.price_change_percentage_24h_in_currency:c.price_change_percentage_24h,p7:c.price_change_percentage_7d_in_currency,p30:c.price_change_percentage_30d_in_currency,ath:c.ath,athp:c.ath_change_percentage,circ:c.circulating_supply,tot:c.total_supply,max:c.max_supply,spark:sp.filter((_,i)=>i%4===0)}}
 function applyCoins(list,tids){
@@ -803,6 +809,7 @@ async function loadNews(){
 const qTTL=()=>usOpen()?3*60e3:45*60e3;
 let qArr=[],qBusy=false;
 function want(list,prio){
+  if(!KEY())return Promise.resolve();
   const fresh=[...new Set(list)].filter(s=>!S.stocks[s]||Date.now()-(S.stocks[s]._t||0)>qTTL());if(!fresh.length)return Promise.resolve();
   qArr=prio?fresh.concat(qArr.filter(x=>!fresh.includes(x))):qArr.concat(fresh.filter(x=>!qArr.includes(x)));
   return runQ();
@@ -908,7 +915,7 @@ function tapeUpd(){if(S.coins.length||Object.keys(S.stocks).length)$('tape').inn
 function render(keep){
   const V={home:vHome,radar:vRadar,coins:vCoins,dex:vDex,defi:vDefi,mhome:vMhome,aktien:vAktien,etf:vEtf,indizes:vIndizes,rohstoffe:vRohstoffe,devisen:vDevisen,watch:vWatch,news:vNews,profil:vProfil}[S.tab]||vHome;
   const f=document.activeElement,id=f&&f.id,sp=f&&f.selectionStart,sy=window.scrollY;
-  let html=(S.fileNeed&&fileH?'<div class="note b">📁 Deine Speicherdatei ist noch nicht wieder verbunden. <button class="btn s" onclick="fileReconnect()">Jetzt verbinden</button></div>':'')+(S.note&&['home','radar','coins'].includes(S.tab)?`<div class="note b">${S.note}</div>`:'')+V();
+  let html=(!KEY()&&['mhome','aktien','etf','indizes','rohstoffe','watch'].includes(S.tab)?'<div class="note b">🔑 Für Aktien, ETFs und Indizes brauchst du einen <b>kostenlosen Finnhub-Key</b> (2 Minuten, nur einmal). <button class="btn s" onclick="go(\'profil\');setTimeout(()=>{const e=document.getElementById(\'keyhelp\');e&&e.scrollIntoView({behavior:\'smooth\'})},100)">Anleitung ansehen</button></div>':'')+(S.fileNeed&&fileH?'<div class="note b">📁 Deine Speicherdatei ist noch nicht wieder verbunden. <button class="btn s" onclick="fileReconnect()">Jetzt verbinden</button></div>':'')+(S.note&&['home','radar','coins'].includes(S.tab)?`<div class="note b">${S.note}</div>`:'')+V();
   const i=html.indexOf('<!--TV-->');
   if(i<0){$('v1').innerHTML=html;$('v2').innerHTML='';setTv(null)}else{$('v1').innerHTML=html.slice(0,i);$('v2').innerHTML=html.slice(i+9);setTv(TVTABS[S.tab]?S.tab:null)}
   if(keep&&id&&$(id)&&/INPUT/.test($(id).tagName)){$(id).focus();try{$(id).setSelectionRange(sp,sp)}catch(e){}}
