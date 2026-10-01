@@ -1,10 +1,19 @@
 name: Paper-Trading-Bot
+# Drei Ausloeser, damit der Bot zuverlaessig weiterlaeuft:
+#  1. schedule: GitHubs Zeitplan (best effort, startet manchmal verspaetet oder gar nicht)
+#  2. Selbst-Anstoss: Jeder Lauf wartet bis zur naechsten Viertelstunde und startet dann den naechsten Lauf
+#     (abschaltbar: Repository > Settings > Secrets and variables > Actions > Variables > BOT_CHAIN = off)
+#  3. push auf main bzw. "Run workflow" von Hand startet die Kette (neu)
 on:
   schedule:
     - cron: '4,19,34,49 * * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['bot/**', '.github/workflows/bot.yml']
 permissions:
   contents: write
+  actions: write
 concurrency:
   group: paper-bot
   cancel-in-progress: false
@@ -35,3 +44,12 @@ jobs:
           git add state.json
           git commit -q -m "Bot-Stand $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push -f origin data-new:data
+      - name: Naechsten Lauf anstossen (zur naechsten Viertelstunde)
+        if: ${{ always() && vars.BOT_CHAIN != 'off' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          wait=$(( 900 - $(date +%s) % 900 ))
+          echo "Warte ${wait}s bis zur naechsten Viertelstunde"
+          sleep "$wait"
+          gh workflow run bot.yml --ref main
