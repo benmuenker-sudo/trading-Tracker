@@ -983,8 +983,11 @@ function render(keep){
 }
 /* =====================  PAPER-BOT  ===================== */
 const BOTURL='https://raw.githubusercontent.com/benmuenker-sudo/trading-Tracker/data/state.json';
-const BOTL={mom:'Momentum',brk:'Ausbruch',vol:'Volumen-Spike',rs:'Stärke vs. Bitcoin',smart:'Smart Money',small:'Kleiner Coin'};
-S.bot=null;S.botErr='';S.botT=0;
+const BOTL={mom:'Momentum / Abwärtstrend',brk:'Ausbruch / Abbruch',vol:'Volumen-Spike',rs:'Stärke / Schwäche vs. Bitcoin',smart:'Smart Money',small:'Kleiner Coin',trend:'Trend-Coin',news:'In den Nachrichten'};
+const LBL={mom:'Momentum',brk:'Ausbruch',vol:'Volumen-Spike',rs:'Stärke vs. Bitcoin',smart:'Smart Money',small:'Kleiner Coin',trend:'Trend-Coin',news:'In den Nachrichten'};
+const LBLS=Object.assign({},LBL,{mom:'Abwärtstrend',brk:'Abbruch nach unten',rs:'Schwäche vs. Bitcoin'});
+const BOTTABS=[['ov','Übersicht'],['pos','Positionen'],['trades','Trades'],['sig','Signale'],['tr','Trader'],['info','Info & Lernen']];
+S.bot=null;S.botErr='';S.botT=0;S.btab=LS.g('bottab','ov');S.btf='all';S.btn=25;S.sf='all';
 async function loadBot(force){
   if(!force&&Date.now()-S.botT<60000)return;S.botT=Date.now();
   const u=LS.g('boturl',BOTURL);
@@ -992,32 +995,111 @@ async function loadBot(force){
   catch(e){S.botErr=String(e.message||e)}
   if(S.tab==='bot')render(true);
 }
-const usd=n=>mp(n);
+const usd=n=>mp(n),sgn=(n,d=1)=>(n>=0?'+':'')+n.toFixed(d);
+const sideTag=s=>`<span class="tag ${s==='short'?'hot':'good'}">${s==='short'?'▼ Short':'▲ Long'}</span>`;
+const dts=t=>new Date(t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+const posPct=p=>p.side==='short'?(1-p.last/p.entry)*100:(p.last/p.entry-1)*100;
+const posUsd=p=>p.side==='short'?p.qty*(p.entry-p.last)-(p.funding||0):p.qty*(p.last-p.entry);
+function botTab(t){S.btab=t;LS.s('bottab',t);render(true);window.scrollTo(0,0)}
+function botChart(cur,start){
+  if(!cur||cur.length<2)return'<p class="sub">Der Verlauf erscheint ab dem zweiten Lauf.</p>';
+  const w=600,h=210,pl=6,pr=6,pt=12,pb=20,eq=cur.map(x=>x[1]),bt=cur.map(x=>x[2]);
+  const all=eq.concat(bt.filter(x=>x!=null),[start]);let mn=Math.min(...all),mx=Math.max(...all);const pad=(mx-mn)*.1||1;mn-=pad;mx+=pad;
+  const X=i=>(pl+i/(cur.length-1)*(w-pl-pr)).toFixed(1),Y=v=>(pt+(1-(v-mn)/(mx-mn))*(h-pt-pb)).toFixed(1);
+  const line=a=>a.map((v,i)=>v==null?null:(i?'L':'M')+X(i)+' '+Y(v)).filter(Boolean).join(' ').replace(/^L/,'M');
+  const up=eq[eq.length-1]>=start,col=up?'var(--up)':'var(--down)';
+  const d0=new Date(cur[0][0]).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}),d1=new Date(cur[cur.length-1][0]).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+  return`<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block" role="img" aria-label="Kapitalverlauf">
+    <line x1="${pl}" x2="${w-pr}" y1="${Y(start)}" y2="${Y(start)}" stroke="var(--line)" stroke-dasharray="4 4"/>
+    <path d="${line(eq)} L${X(cur.length-1)} ${h-pb} L${X(0)} ${h-pb} Z" fill="${col}" fill-opacity=".09"/>
+    ${bt.some(v=>v!=null)?`<path d="${line(bt)}" fill="none" stroke="var(--gold)" stroke-width="1.6" stroke-dasharray="5 4" opacity=".9"/>`:''}
+    <path d="${line(eq)}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round"/>
+    <text x="${pl}" y="${pt-2}" font-size="11" fill="var(--mute)">${esc(usd(mx-pad))}</text><text x="${pl}" y="${h-pb-4}" font-size="11" fill="var(--mute)">${esc(usd(mn+pad))}</text>
+    <text x="${pl}" y="${h-4}" font-size="11" fill="var(--mute)">${d0}</text><text x="${w-pr}" y="${h-4}" font-size="11" text-anchor="end" fill="var(--mute)">${d1}</text></svg>
+    <div class="sub" style="margin-top:6px"><span style="color:${col}">━</span> Bot &nbsp; <span style="color:var(--gold)">╍</span> Bitcoin (Buy &amp; Hold) &nbsp; <span class="sub">┄ Startkapital</span></div>`;
+}
+function botOv(b){
+  const st=b.stats||{},m=b.market||{},inf=b.info||{},cur=b.equity_curve||[],last=cur[cur.length-1]||[],btc=last[2]!=null?(last[2]/b.start_equity-1)*100:null;
+  const ret=(b.equity/b.start_equity-1)*100,inv=(b.positions||[]).reduce((a,p)=>a+p.size,0),unreal=(b.positions||[]).reduce((a,p)=>a+posUsd(p),0);
+  const real=(b.trades||[]).reduce((a,t)=>a+t.pnl,0),bs=st.by_side||{},f=inf.fng;
+  const side=k=>{const g=bs[k]||{};return`<div class="rw"><span>${k==='short'?'▼ Short':'▲ Long'}</span><b>${g.n?`${g.n} Trades · ${g.win_rate}% Treffer · <span class="${g.pnl>=0?'up':'down'}">${usd(g.pnl)}</span>`:'noch keine'}</b></div>`};
+  return`<div class="stats">${statBox('Kapital',usd(b.equity),`<span class="${ret>=0?'up':'down'}">${sgn(ret,2)}%</span> seit Start`)}${statBox('Bitcoin im Vergleich',btc==null?'–':`<span class="${btc>=0?'up':'down'}">${sgn(btc,2)}%</span>`,btc==null?'':`Bot ${ret>=btc?'liegt vorn':'liegt zurück'} (${sgn(ret-btc,2)} Pkt.)`)}
+  ${statBox('Realisiert',`<span class="${real>=0?'up':'down'}">${usd(real)}</span>`,`${(b.trades||[]).length} geschlossene Trades`)}${statBox('Offen (unrealisiert)',`<span class="${unreal>=0?'up':'down'}">${usd(unreal)}</span>`,`${(b.positions||[]).length} Positionen`)}
+  ${statBox('Investiert',Math.round(inv/b.equity*100)+' %',`Bargeld ${usd(b.cash)}`)}${statBox('Trefferquote',st.win_rate==null?'–':st.win_rate+' %',st.avg_win!=null?`Ø Gewinn ${sgn(st.avg_win)}% · Ø Verlust ${sgn(st.avg_loss||0)}%`:'noch keine Trades')}
+  ${statBox('Profit-Faktor',st.profit_factor||'–','Gewinne ÷ Verluste')}${statBox('Max. Rückgang',(st.max_drawdown||0)+' %','vom Höchststand')}</div>
+  <div class="glass" style="margin-top:12px"><div class="sub" style="margin-bottom:6px">Kapitalverlauf</div>${botChart(cur,b.start_equity)}</div>
+  <div class="cols" style="margin-top:12px">
+   <div class="glass"><b>Markt</b><div class="rw"><span>Bitcoin 24h / 7 Tage</span><b>${pt(m.btc24h)} / ${pt(m.btc7d)}</b></div><div class="rw"><span>Neue Longs</span><b class="${m.regime_ok===false?'down':'up'}">${m.regime_ok===false?'gesperrt (Crash)':'erlaubt'}</b></div><div class="rw"><span>Neue Shorts</span><b class="${m.shorts_ok===false?'down':'up'}">${m.shorts_ok===false?'gesperrt (Bitcoin pumpt)':'erlaubt'}</b></div>
+    ${f?`<div class="rw"><span>Fear &amp; Greed</span><b>${f.value} · ${esc(f.label)}</b></div><div class="gauge"><i style="left:${f.value}%"></i></div>`:''}
+    <div class="rw"><span>Geprüft</span><b>${m.coins||0} Coins${m.dex?' + '+m.dex+' DEX':''} · ${m.headlines||0} Schlagzeilen</b></div></div>
+   <div class="glass"><b>Long vs. Short</b>${side('long')}${side('short')}<div class="rw"><span>Gebühren &amp; Finanzierung</span><b>${usd(st.fees_paid||0)}</b></div><div class="rw"><span>Bester / schlechtester Trade</span><b>${esc(st.best||'–')} / ${esc(st.worst||'–')}</b></div><div class="rw"><span>Ø Haltedauer</span><b>${st.avg_days!=null?st.avg_days+' Tage':'–'}</b></div></div></div>
+  <h2>Letzte Trades <small><a href="#" onclick="botTab('trades');return false">alle ansehen →</a></small></h2>${botTradeList((b.trades||[]).slice(-5).reverse(),5)||'<div class="glass sub">Noch keine abgeschlossenen Trades.</div>'}`;
+}
+function botPos(b){
+  const ps=(b.positions||[]).slice().sort((x,y)=>posPct(y)-posPct(x));
+  if(!ps.length)return'<div class="glass sub">Gerade keine offene Position – der Bot wartet auf gute Gelegenheiten.</div>';
+  const tot=ps.reduce((a,p)=>a+posUsd(p),0);
+  return`<p class="sub">Unrealisiert gesamt: <b class="${tot>=0?'up':'down'}">${usd(tot)}</b> · nach Ergebnis sortiert</p><div class="grid">`+ps.map(p=>{const r=posPct(p),u=posUsd(p),sh=p.side==='short',fr=clamp(sh?(p.stop-p.last)/(p.stop-p.target):(p.last-p.stop)/(p.target-p.stop));
+    return`<div class="glass"><div class="hd"><div style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="sy">${esc(p.sym)}${p.kind==='dex'?' · DEX':''}${p.rank&&p.rank<9999?' · #'+p.rank:''}</div></div><div style="margin-left:auto;text-align:right">${sideTag(p.side)}<div class="sub" style="margin-top:4px">Score ${p.score}</div></div></div>
+    <div class="big ${r>=0?'up':'down'}">${sgn(r)}% <span class="sub" style="font-size:14px;font-weight:500">${u>=0?'+':''}${usd(u)}</span></div>
+    <div class="rng" title="Stopp ← Kurs → Ziel"><i style="left:${(fr*100).toFixed(0)}%"></i></div><div class="rw" style="margin-top:2px"><span>Stopp ${pr(p.stop)}</span><span>Ziel ${pr(p.target)}</span></div>
+    ${rw('Einstieg',pr(p.entry))}${rw('Jetzt',pr(p.last))}${rw('Einsatz',usd(p.size))}${rw('Seit',dts(p.t_in)+' ('+ago(Date.parse(p.t_in)).replace('vor ','')+')')}${sh?rw('Finanzierung',usd(p.funding||0)):''}
+    <div class="tags">${(p.why||[]).map(w=>`<span class="tag blue">${esc(w)}</span>`).join('')}</div></div>`}).join('')+'</div>';
+}
+function botTradeList(list,max){
+  return list.length?`<div class="glass lst" style="padding:6px 14px">`+list.slice(0,max).map(t=>`<details style="border-bottom:1px solid var(--line);padding:10px 0"><summary style="cursor:pointer;display:flex;align-items:center;gap:10px;list-style:none"><span class="n" style="flex:1;min-width:0;white-space:normal;overflow:visible"><b>${esc(t.sym)}</b> ${sideTag(t.side)} <span class="sub">${esc(t.reason)}</span><div class="sub" style="font-size:12px">${dts(t.t_out)} · ${t.days.toFixed(1)} Tg.</div></span><span style="text-align:right"><b class="${t.pnl>=0?'up':'down'}">${sgn(t.pnl_pct)}%</b><div class="sub" style="font-size:12px">${t.pnl>=0?'+':''}${usd(t.pnl)}</div></span></summary>
+    <div style="padding-top:10px">${rw('Name',esc(t.name))}${rw('Einstieg',pr(t.entry)+' ('+dts(t.t_in)+')')}${rw('Ausstieg',pr(t.exit)+' ('+dts(t.t_out)+')')}${rw('Einsatz',usd(t.size))}${rw('Gebühren/Finanzierung',usd(t.fees||0))}${rw('Bester / schlechtester Punkt',t.mfe!=null?sgn(t.mfe)+'% / '+sgn(t.mae)+'%':'–')}${rw('Score beim Einstieg',t.score)}
+    <div class="tags">${(t.why||[]).map(w=>`<span class="tag blue">${esc(w)}</span>`).join('')}</div></div></details>`).join('')+'</div>':'';
+}
+function botTrades(b){
+  const all=(b.trades||[]).slice().reverse(),F={all:()=>true,long:t=>t.side!=='short',short:t=>t.side==='short',win:t=>t.pnl>0,loss:t=>t.pnl<=0};
+  const list=all.filter(F[S.btf]),st=b.stats||{},br=st.by_reason||{};
+  const chips=[['all','Alle'],['long','▲ Long'],['short','▼ Short'],['win','Gewinne'],['loss','Verluste']].map(([k,l])=>`<button class="chip ${S.btf===k?'on':''}" onclick="S.btf='${k}';S.btn=25;render(true)">${l} <span class="sub">${all.filter(F[k]).length}</span></button>`).join('');
+  const reasons=Object.keys(br).map(r=>`<div class="rw"><span>${esc(r)}</span><b>${br[r].n}× · Ø ${sgn(br[r].avg_pct||0)}% · <span class="${br[r].pnl>=0?'up':'down'}">${usd(br[r].pnl)}</span></b></div>`).join('');
+  return`<div class="bar">${chips}</div>${list.length?botTradeList(list,S.btn):'<div class="glass sub">Keine Trades in dieser Auswahl.</div>'}
+  ${list.length>S.btn?`<div class="pg"><button class="btn g" onclick="S.btn+=25;render(true)">Mehr anzeigen (${list.length-S.btn} weitere)</button></div>`:''}
+  ${all.length?`<div class="bar" style="margin-top:14px"><button class="btn g s" onclick="botCsv()">⬇ Alle Trades als CSV (Excel)</button></div>`:''}
+  ${reasons?`<h2>Nach Ausstiegsgrund</h2><div class="glass">${reasons}</div>`:''}`;
+}
+function botCsv(){
+  const b=S.bot;if(!b)return;const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const rows=[['Symbol','Name','Richtung','Einstieg Zeit','Ausstieg Zeit','Einstiegspreis','Ausstiegspreis','Einsatz USD','Gewinn USD','Gewinn %','Grund','Tage','Gebühren USD','Score']];
+  (b.trades||[]).forEach(t=>rows.push([t.sym,t.name,t.side||'long',t.t_in,t.t_out,t.entry,t.exit,t.size,t.pnl,t.pnl_pct,t.reason,t.days,t.fees,t.score]));
+  dl('paper-bot-trades.csv','﻿'+rows.map(r=>r.map(q).join(';')).join('\n'),'text/csv');
+}
+function botSig(b){
+  const all=b.signals||[],L=all.filter(x=>S.sf==='all'||(x.side||'long')===S.sf);
+  const chips=[['all','Alle'],['long','▲ Long'],['short','▼ Short']].map(([k,l])=>`<button class="chip ${S.sf===k?'on':''}" onclick="S.sf='${k}';render(true)">${l}</button>`).join('');
+  return`<p class="sub">Die 40 besten Bewertungen im letzten Lauf. Einstieg ab ${40} Punkten (Short ab ${45}) und mindestens 2 bestätigenden Signalen.</p><div class="bar">${chips}</div>
+  <div class="glass lst">`+(L.map(x=>`<div class="li" style="align-items:flex-start;flex-wrap:wrap"><span class="n" style="flex:1;min-width:150px;white-space:normal;overflow:visible"><b>${esc(x.sym)}</b> ${sideTag(x.side||'long')} <span class="sub">${esc(x.name)}${x.kind==='dex'?' · DEX':x.rank<9999?' · #'+x.rank:''}</span><div class="sub" style="font-size:12px">${pr(x.price)} · 1h ${pt(x.c1h)} · 24h ${pt(x.c24h)} · 7T ${pt(x.c7d)}</div></span><span class="pill" style="background:var(--card2);font-size:15px">${x.score}</span><div class="tags" style="width:100%;margin-top:2px">${Object.keys(x.comp||{}).filter(k=>x.comp[k]>=.4).map(k=>`<span class="tag ${x.side==='short'?'hot':'blue'}">${esc((x.side==='short'?LBLS:LBL)[k])} ${Math.round(x.comp[k]*100)}</span>`).join('')}<span class="tag">${x.confirm} Signale</span></div></div>`).join('')||'<span class="sub">Noch keine Daten.</span>')+'</div>';
+}
+function botTr(b){
+  const ev=(b.events||[]).slice(-25).reverse().map(e=>{const T={open:'eröffnet',add:'stockt auf',reduce:'reduziert',close:'schließt',flip:'dreht auf'}[e.type]||e.type;return`<div class="li"><span class="n"><b>${esc(e.trader)}</b> ${T} <b>${esc(e.coin)}</b> ${sideTag(e.side)}</span><span class="sub">${usd(e.value)} · ${ago(Date.parse(e.t))}</span></div>`}).join('');
+  const trd=(b.traders||[]).map(t=>`<div class="glass"><div class="nm">${esc(t.name)}</div><div class="sub">Konto ${usd(t.av)} · Monat ${pt(t.month_roi*100)} · Gesamtgewinn ${usd(t.all_pnl)}</div><div class="tags">${(t.positions||[]).map(p=>`<span class="tag ${p.side==='long'?'good':'hot'}">${esc(p.coin)} ${p.side==='long'?'▲':'▼'} ${usd(p.value)}</span>`).join('')||'<span class="sub">keine großen Positionen</span>'}</div></div>`).join('');
+  return`<p class="sub">Erfolgreiche Trader auf Hyperliquid (öffentliche Daten), automatisch ausgewählt: Gewinn in Woche, Monat und gesamt, mindestens 100.000 $ Konto, keine Market-Maker. Deren Positionen sind ein Signal unter mehreren.</p>
+  <h2>Letzte Bewegungen</h2>${ev?`<div class="glass lst">${ev}</div>`:'<div class="glass sub">Noch keine Bewegungen – sie erscheinen, sobald sich bei den Tradern etwas ändert.</div>'}<h2>Beobachtete Trader <small>${(b.traders||[]).length}</small></h2><div class="grid">${trd}</div>`;
+}
+function botInfo(b){
+  const inf=b.info||{},st=b.stats||{},w=b.weights||{},wl=w.long||w,ws=w.short||{},bc=st.by_comp||{},cl=bc.long||bc,cs=bc.short||{};
+  const row=(k,d)=>d?` <span class="sub">(${d.n}× · ${d.win_rate}% · Ø ${sgn(d.avg_pct||0)}%)</span>`:'';
+  const wts=Object.keys(BOTL).map(k=>`<div class="rw" style="flex-wrap:wrap"><span>${BOTL[k]}</span><b>Long ×${(wl[k]||1).toFixed(2)}${row(k,cl[k])} · Short ×${((ws[k])||1).toFixed(2)}${row(k,cs[k])}</b></div>`).join('');
+  const hl=(inf.headlines||[]).map(h=>`<div class="li"><span class="n" style="white-space:normal">${esc(h.title)}<div class="sub" style="font-size:12px">${esc(h.src)} · ${ago(Date.parse(h.t))}</div></span></div>`).join('');
+  return`<div class="cols"><div class="glass"><b>Trend-Coins (CoinGecko)</b>${(inf.trending||[]).map(x=>`<div class="rw"><span>${esc(x.name)} <span class="sub">${esc(x.sym)}</span></span><b>${pt(x.c24h)}</b></div>`).join('')||'<p class="sub">keine Daten</p>'}</div>
+   <div class="glass"><b>Oft in den Nachrichten (24 h)</b>${(inf.buzz||[]).map(x=>`<div class="rw"><span>${esc(x.name)} <span class="sub">${esc(x.sym)}</span></span><b>${x.n}× genannt</b></div>`).join('')||'<p class="sub">keine Treffer</p>'}</div></div>
+  <h2>Aktuelle Schlagzeilen</h2><div class="glass lst">${hl||'<span class="sub">keine Daten</span>'}</div>
+  <h2>Was der Bot gelernt hat <small>Gewicht je Signalart, 1,00 = Standard (0,5–1,5). Gelernt wird erst ab 8 Trades pro Signalart und Richtung.</small></h2><div class="glass">${wts}</div>
+  <h2>Regeln <small>zum Nachlesen</small></h2><div class="glass sub" style="line-height:1.7">Startkapital 10.000 $ · max. 12 Positionen, davon max. 4 Shorts · 1–3 % je Einstieg (Short 70 %, DEX-Token ~35 %) · Gebühr 0,1 % pro Seite plus Kursabweichung nach Coin-Größe · Shorts: 0,03 % Finanzierung pro Tag · Stopp 8 % · Ziel +30 % (Short −25 %) · Trailing ab +10 % mit 8 % Abstand · Zeit-Stopp nach 10 Tagen unter +5 % · Keine neuen Longs bei Bitcoin −6 % (24 h) oder −15 % (7 Tage) · Keine neuen Shorts bei Bitcoin +4 % (24 h) · derselbe Coin erst nach 3 Tagen wieder. Der Bot läuft alle 15 Minuten auf GitHub-Servern, unabhängig von deinem PC; Stopps werden nur bei jedem Lauf geprüft.</div>`;
+}
 function vBot(){
   const b=S.bot;
   const url=`<details style="margin-top:14px"><summary class="sub" style="cursor:pointer">Datenquelle ändern</summary><div class="bar" style="margin-top:8px"><input class="inp" id="bu" value="${esc(LS.g('boturl',BOTURL))}" style="min-width:260px"><button class="btn s" onclick="LS.s('boturl',$('bu').value.trim()||BOTURL);S.botT=0;loadBot(true)">Speichern</button></div></details>`;
-  if(!b)return`<h2>🤖 Paper-Bot <small>Simulation – kein echtes Geld</small></h2><div class="glass"><p>${S.botErr?'Noch keine Bot-Daten gefunden ('+esc(S.botErr)+').':'Lade Bot-Daten …'}</p><p class="sub">Der Bot läuft automatisch auf GitHub (alle 30 Minuten). Falls er noch nie lief: auf GitHub im Repository ▸ <b>Actions</b> ▸ „Paper-Trading-Bot“ ▸ <b>Run workflow</b>. Danach hier neu laden.</p><button class="btn" onclick="loadBot(true)">Neu laden</button>${url}</div>`;
-  const st=b.stats||{},m=b.market||{},ret=(b.equity/b.start_equity-1)*100,cur=b.equity_curve||[],last=cur[cur.length-1]||[],btc=last[2]!=null?(last[2]/b.start_equity-1)*100:null;
-  const eq=cur.map(x=>x[1]),bt=cur.map(x=>x[2]).filter(x=>x!=null);
-  const pos=(b.positions||[]).map(p=>{const r=(p.last/p.entry-1)*100;return`<div class="glass"><div class="hd"><div><div class="nm">${esc(p.name)}</div><div class="sy">${esc(p.sym)}${p.kind==='dex'?' · DEX':''} · seit ${ago(Date.parse(p.t_in))}</div></div><div class="sc">${p.score}</div></div>
-    <div class="big ${r>=0?'up':'down'}">${r>=0?'+':''}${r.toFixed(1)}%</div>${rw('Einstieg',pr(p.entry))}${rw('Jetzt',pr(p.last))}${rw('Stopp / Ziel',pr(p.stop)+' / '+pr(p.target))}${rw('Einsatz',usd(p.size))}
-    <div class="tags">${(p.why||[]).map(w=>`<span class="tag blue">${esc(w)}</span>`).join('')}</div></div>`}).join('');
-  const sig=(b.signals||[]).slice(0,12).map(x=>`<div class="li"><span class="n"><b>${esc(x.sym)}</b> <span class="sub">${esc(x.name)}${x.kind==='dex'?' · DEX':x.rank<9999?' · #'+x.rank:''}</span></span><span class="sub">${pt(x.c24h)} 24h</span><span class="pill ${x.score>=40?'up':''}" style="background:var(--card2)">${x.score}</span></div>`).join('');
-  const ev=(b.events||[]).slice(-12).reverse().map(e=>{const T={open:'eröffnet',add:'stockt auf',reduce:'reduziert',close:'schließt',flip:'dreht'}[e.type]||e.type;return`<div class="li"><span class="n"><b>${esc(e.trader)}</b> ${T} <b>${esc(e.coin)}</b> <span class="${e.side==='long'?'up':'down'}">${e.side}</span></span><span class="sub">${usd(e.value)} · ${ago(Date.parse(e.t))}</span></div>`}).join('');
-  const trd=(b.traders||[]).slice(0,10).map(t=>`<div class="glass"><div class="nm">${esc(t.name)}</div><div class="sub">Konto ${usd(t.av)} · Monat ${pt(t.month_roi*100)} · gesamt ${usd(t.all_pnl)}</div><div class="tags">${(t.positions||[]).slice(0,6).map(p=>`<span class="tag ${p.side==='long'?'good':'hot'}">${esc(p.coin)} ${p.side==='long'?'▲':'▼'} ${usd(p.value)}</span>`).join('')||'<span class="sub">keine großen Positionen</span>'}</div></div>`).join('');
-  const closed=(b.trades||[]).slice(-15).reverse().map(t=>`<div class="li"><span class="n"><b>${esc(t.sym)}</b> <span class="sub">${esc(t.reason)} · ${t.days.toFixed(1)} Tg.</span></span><span class="${t.pnl>=0?'up':'down'}">${t.pnl>=0?'+':''}${t.pnl_pct.toFixed(1)}%</span><span class="sub">${usd(t.pnl)}</span></div>`).join('');
-  const wts=Object.keys(BOTL).map(k=>{const w=(b.weights||{})[k]||1,c=(st.by_comp||{})[k];return`<div class="brow"><span class="bn">${BOTL[k]}</span><span class="bb"><i style="width:${Math.round(w/1.5*100)}%"></i></span><span class="bv">×${w.toFixed(2)}${c?` <span class="sub">(${c.n} Trades)</span>`:''}</span></div>`}).join('');
-  return`<h2>🤖 Paper-Bot <small>Simulation – kein echtes Geld · Stand ${ago(Date.parse(b.updated))}</small><span class="r"><a href="#" onclick="loadBot(true);return false">↻ neu laden</a></span></h2>
-  <div class="note">Der Bot handelt nur im Kopf: virtuelle ${usd(b.start_equity)}, echte Kurse, mit Gebühren und Kursabweichung. Ergebnisse der Vergangenheit sagen nichts über die Zukunft. Kein Anlagetipp.</div>
-  <div class="stats">${statBox('Kapital',usd(b.equity),`<span class="${ret>=0?'up':'down'}">${ret>=0?'+':''}${ret.toFixed(2)}%</span> seit Start`)}${statBox('Bitcoin im Vergleich',btc==null?'–':`<span class="${btc>=0?'up':'down'}">${btc>=0?'+':''}${btc.toFixed(2)}%</span>`,'Buy &amp; Hold seit Start')}${statBox('Trefferquote',st.win_rate==null?'–':st.win_rate+' %',(st.n||0)+' abgeschlossene Trades')}${statBox('Max. Rückgang',(st.max_drawdown||0)+' %',st.profit_factor?'Profit-Faktor '+st.profit_factor:'')}</div>
-  ${eq.length>1?`<div class="glass" style="margin-top:12px"><div class="sub">Kapitalverlauf</div>${spark(eq,ret>=0,90)}</div>`:''}
-  <p class="sub" style="margin-top:10px">Markt: ${m.regime_ok===false?'<b class="down">Marktfilter aktiv – keine neuen Einstiege</b>':'<b class="up">normal</b>'} · ${m.coins||0} Coins${m.dex?' + '+m.dex+' DEX-Token':''} geprüft · ${m.traders||0} Trader beobachtet</p>
-  <h2>Offene Positionen <small>${(b.positions||[]).length}</small></h2>${pos?`<div class="grid">${pos}</div>`:'<div class="glass sub">Gerade keine offene Position – der Bot wartet auf gute Gelegenheiten.</div>'}
-  <h2>Top-Signale jetzt <small>Punkte 0–100, Einstieg ab 40 und mindestens 2 bestätigende Signale</small></h2><div class="glass lst">${sig||'<span class="sub">Noch keine Daten.</span>'}</div>
-  <h2>Smart Money <small>erfolgreiche Trader auf Hyperliquid (öffentliche Daten)</small></h2>${ev?`<div class="glass lst">${ev}</div>`:'<div class="glass sub">Noch keine Bewegungen – ab dem zweiten Lauf werden Änderungen sichtbar.</div>'}
-  <div class="grid" style="margin-top:14px">${trd}</div>
-  <h2>Letzte Trades</h2><div class="glass lst">${closed||'<span class="sub">Noch keine abgeschlossenen Trades.</span>'}</div>
-  <h2>Was der Bot gelernt hat <small>Gewichte je Signalart (1,00 = Standard, ab ${8} Trades pro Signalart wird angepasst)</small></h2><div class="glass">${wts}</div>${url}`;
+  if(!b)return`<h2>🤖 Paper-Bot <small>Simulation – kein echtes Geld</small></h2><div class="glass"><p>${S.botErr?'Noch keine Bot-Daten gefunden ('+esc(S.botErr)+').':'Lade Bot-Daten …'}</p><p class="sub">Der Bot läuft automatisch auf GitHub. Falls er noch nie lief: auf GitHub im Repository ▸ <b>Actions</b> ▸ „Paper-Trading-Bot“ ▸ <b>Run workflow</b>. Danach hier neu laden.</p><button class="btn" onclick="loadBot(true)">Neu laden</button>${url}</div>`;
+  const tabs=BOTTABS.map(([k,l])=>`<button class="chip ${S.btab===k?'on':''}" onclick="botTab('${k}')">${l}${k==='pos'?` <span class="sub">${(b.positions||[]).length}</span>`:k==='trades'?` <span class="sub">${(b.trades||[]).length}</span>`:''}</button>`).join('');
+  const body={ov:botOv,pos:botPos,trades:botTrades,sig:botSig,tr:botTr,info:botInfo}[S.btab]||botOv;
+  return`<h2>🤖 Paper-Bot <small>Simulation – kein echtes Geld · Lauf ${b.runs} · Stand ${ago(Date.parse(b.updated))}</small><span class="r"><a href="#" onclick="loadBot(true);return false">↻ neu laden</a></span></h2>
+  <div class="bar" style="flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px">${tabs}</div>
+  ${S.btab==='ov'?`<div class="note">Der Bot handelt nur im Kopf: virtuelle ${usd(b.start_equity)}, echte Kurse, mit Gebühren und Kursabweichung – auf steigende (Long) und fallende Kurse (Short). Ergebnisse der Vergangenheit sagen nichts über die Zukunft. Kein Anlagetipp.</div>`:''}
+  ${body(b)}${url}`;
 }
 
 /* =====================  HELL / DUNKEL  ===================== */

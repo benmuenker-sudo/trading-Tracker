@@ -13,8 +13,12 @@ def market(overrides=None, n=300):
     return cs
 
 class Fake:
-    def __init__(self, mk, lb=None, pos=None):
+    def __init__(self, mk, lb=None, pos=None, trend=None, news=None, fng=None):
         self.mk, self.lb, self.pos = mk, lb, pos or {}
+        self._trend, self._news, self._fng = trend or [], news or [], fng
+    def trending(self): return self._trend
+    def news(self): return self._news
+    def fng(self): return self._fng
     def markets(self, pages=4): return copy.deepcopy(self.mk)
     def leaderboard(self): return self.lb
     def positions(self, a): return self.pos.get(a)
@@ -86,10 +90,125 @@ class Engine(unittest.TestCase):
             st["trades"].append({"pnl_pct": 12.0 if good else -8.0, "pnl": 1 if good else -1,
                                  "comp": {"mom": 0.9 if good else 0.0, "brk": 0.0 if good else 0.9, "vol": 0, "rs": 0, "smart": 0, "small": 0}})
         rb.learn(st)
-        self.assertGreater(st["weights"]["mom"], 1.0)
-        self.assertLess(st["weights"]["brk"], 1.0)
-        for v in st["weights"].values():
-            self.assertTrue(0.5 <= v <= 1.5)
+        self.assertGreater(st["weights"]["long"]["mom"], 1.0)
+        self.assertLess(st["weights"]["long"]["brk"], 1.0)
+        self.assertEqual(st["weights"]["short"]["mom"], 1.0)      # keine Short-Trades -> unveraendert
+        for side in st["weights"].values():
+            for v in side.values():
+                self.assertTrue(0.5 <= v <= 1.5)
+
+DROP = {5: dict(price=2.0, c1h=-1.5, c24h=-12.0, c7d=-35.0, c30d=-60.0, vol=4e8, mcap=1e9)}
+
+class Shorts(unittest.TestCase):
+    def test_short_profit_with_costs(self):
+        st = rb.new_state()
+        rb.run(st, Fake(market(DROP)), ts=T0)
+        shorts = [p for p in st["positions"] if p["side"] == "short"]
+        self.assertEqual(len(shorts), 1)
+        p = shorts[0]
+        self.assertLess(p["entry"], 2.0)                       # Verkauf mit Slippage etwas tiefer
+        self.assertGreater(p["stop"], p["entry"])
+        self.assertLess(p["target"], p["entry"])
+        self.assertAlmostEqual(st["cash"], rb.START_EQUITY - p["size"] - p["fee_in"], 4)
+        # Kurs faellt weiter auf unter das Ziel -> Gewinn
+        rb.run(st, Fake(market({5: dict(price=p["entry"] * 0.70, c1h=0, c24h=0, c7d=0, c30d=0)})), ts=T0 + 86400)
+        t = st["trades"][0]
+        self.assertEqual((t["side"], t["reason"]), ("short", "Ziel erreicht"))
+        self.assertGreater(t["pnl"], 0)
+        self.assertGreater(t["pnl"], 0.2 * t["size"])          # ~ +30 % minus Kosten
+        self.assertLess(t["pnl"], 0.31 * t["size"])
+        self.assertAlmostEqual(st["equity"], st["cash"], 2)
+        self.assertGreater(t["fees"], 0)                       # inkl. Finanzierung
+
+    def test_short_stop_loss(self):
+        st = rb.new_state()
+        rb.run(st, Fake(market(DROP)), ts=T0)
+        p = [x for x in st["positions"] if x["side"] == "short"][0]
+        rb.run(st, Fake(market({5: dict(price=p["entry"] * 1.12, c1h=0, c24h=0, c7d=0, c30d=0)})), ts=T0 + 1800)
+        t = st["trades"][0]
+        self.assertEqual((t["side"], t["reason"]), ("short", "Stopp"))
+        self.assertLess(t["pnl"], 0)
+        self.assertAlmostEqual(st["equity"], st["cash"], 2)
+
+    def test_equity_marks_short_unrealized(self):
+        st = rb.new_state()
+        rb.run(st, Fake(market(DROP)), ts=T0)
+        p = [x for x in st["positions"] if x["side"] == "short"][0]
+        rb.run(st, Fake(market({5: dict(price=p["entry"] * 0.9, c1h=0, c24h=0, c7d=0, c30d=0)})), ts=T0 + 1800)
+        self.assertEqual(len(st["positions"]), 1)
+        self.assertGreater(st["equity"], 10000 - 10)           # Short im Plus (+10 %) deckt Gebuehren
+
+    def test_no_shorts_when_btc_pumps_or_small_coin(self):
+        st = rb.new_state()
+        o = dict(DROP)
+        o[0] = dict(c24h=6.0)                                  # Bitcoin pumpt
+        rb.run(st, Fake(market(o)), ts=T0)
+        self.assertEqual([p for p in st["positions"] if p["side"] == "short"], [])
+        st = rb.new_state()
+        small = {250: dict(price=2.0, c1h=-1.5, c24h=-12.0, c7d=-35.0, c30d=-60.0, vol=4e8, mcap=1e9, rank=700)}
+        rb.run(st, Fake(market(small)), ts=T0)
+        self.assertEqual([p for p in st["positions"] if p["side"] == "short"], [])
+
+    def test_short_learning_separate(self):
+        st = rb.new_state()
+        for i in range(20):
+            st["trades"].append({"side": "short", "pnl_pct": 10.0 if i % 2 == 0 else -9.0, "pnl": 1,
+                                 "comp": {"mom": 0.9 if i % 2 == 0 else 0.0, "brk": 0.0 if i % 2 == 0 else 0.9}})
+        rb.learn(st)
+        self.assertGreater(st["weights"]["short"]["mom"], 1.0)
+        self.assertEqual(st["weights"]["long"]["mom"], 1.0)
+
+class Extras(unittest.TestCase):
+    def test_news_buzz_and_trending_raise_score(self):
+        cs = market({5: dict(name="Zorbix", sym="ZRB", price=2.0, c1h=0.5, c24h=4.0, c7d=10.0, c30d=20.0, vol=1e8, mcap=5e8)})
+        heads = [{"title": "Zorbix surges as $ZRB listed on big exchange", "ts": T0 - 3600, "src": "x"},
+                 {"title": "Zorbix partners with bank", "ts": T0 - 7200, "src": "x"},
+                 {"title": "Zorbix old news", "ts": T0 - 5 * 86400, "src": "x"}]
+        buzz = rb.news_buzz(heads, cs, T0)
+        self.assertEqual(buzz.get("coin5"), 2)                 # alte Schlagzeile zaehlt nicht
+        a = rb.components(cs[5], 1.0, {}, "long", (), {})
+        b = rb.components(cs[5], 1.0, {}, "long", ("coin5",), buzz)
+        self.assertEqual((a["trend"], a["news"]), (0.0, 0.0))
+        self.assertEqual(b["trend"], 1.0)
+        self.assertAlmostEqual(b["news"], 2 / 3, 3)
+        self.assertGreater(rb.total_score(b, {}), rb.total_score(a, {}))
+        st = rb.new_state()
+        rb.run(st, Fake(cs, trend=["coin5"], news=heads, fng={"value": 40, "label": "Fear"}), ts=T0)
+        self.assertEqual(st["info"]["fng"]["value"], 40)
+        self.assertEqual(st["info"]["trending"][0]["sym"], "ZRB")
+        self.assertTrue(st["info"]["headlines"])
+
+    def test_rss_parse(self):
+        xml = "<rss><channel><item><title>Hallo Welt</title><pubDate>Wed, 01 Oct 2026 12:00:00 +0000</pubDate></item><item><title>Zwei</title></item></channel></rss>"
+        out = rb.parse_rss(xml, "T")
+        self.assertEqual([o["title"] for o in out], ["Hallo Welt", "Zwei"])
+        self.assertEqual(rb.parse_rss("kaputt", "T"), [])
+
+    def test_failing_extras_do_not_stop_run(self):
+        class Boom(Fake):
+            def trending(self): raise RuntimeError("x")
+            def news(self): raise RuntimeError("x")
+            def fng(self): raise RuntimeError("x")
+        st = rb.new_state()
+        rb.run(st, Boom(market()), ts=T0)
+        self.assertEqual(st["runs"], 1)
+
+    def test_migrate_old_state(self):
+        old = {"v": 1, "cash": 9000.0, "weights": {"mom": 1.2, "brk": 0.9}, "start_equity": 10000.0,
+               "positions": [{"id": "x", "sym": "X", "name": "X", "kind": "cg", "entry": 1.0, "qty": 1000.0, "size": 1000.0,
+                              "fee_in": 1.0, "slip": 0.001, "stop": .92, "target": 1.3, "hw": 1.1, "last": 1.1,
+                              "t_in": "2026-10-01T00:00:00Z", "ts_in": T0, "score": 50, "comp": {}, "why": []}],
+               "trades": [{"id": "y", "pnl": 5, "pnl_pct": 1.0, "reason": "Ziel erreicht", "comp": {"mom": .9}, "days": 1, "sym": "Y"}]}
+        base = rb.new_state()
+        base.update(old)                                       # wie load_state()
+        st = rb.migrate(base)
+        self.assertEqual(st["weights"]["long"]["mom"], 1.2)
+        self.assertEqual(st["weights"]["short"]["mom"], 1.0)
+        self.assertEqual(st["positions"][0]["side"], "long")
+        self.assertEqual(st["positions"][0]["best"], 1.1)
+        self.assertEqual(st["trades"][0]["side"], "long")
+        rb.run(st, Fake(market()), ts=T0 + 1800)               # laeuft mit altem Stand durch
+        self.assertIn("by_side", st["stats"])
 
 class Traders(unittest.TestCase):
     def row(self, addr, av=500000, wp=1e4, mp=5e4, ap=3e5, wr=.05, mr=.3, ar=1.0, vlm=1e6):
