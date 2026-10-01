@@ -1,7 +1,7 @@
 name: Paper-Trading-Bot
 on:
   schedule:
-    - cron: '7,37 * * * *'
+    - cron: '4,19,34,49 * * * *'
   workflow_dispatch:
 permissions:
   contents: write
