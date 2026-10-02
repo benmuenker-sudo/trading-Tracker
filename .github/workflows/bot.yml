@@ -28,20 +28,24 @@ jobs:
           git fetch origin data || true
           if git rev-parse --verify origin/data >/dev/null 2>&1; then
             git show origin/data:state.json > bot/state.json || rm -f bot/state.json
+            git show origin/data:obs.json > bot/obs.json 2>/dev/null || rm -f bot/obs.json
           fi
       - name: Tests
+        continue-on-error: true   # ein fehlgeschlagener Test soll den laufenden Bot nicht anhalten
         run: python3 bot/test_bot.py
       - name: Bot ausfuehren
         run: BOT_STATE=bot/state.json python3 bot/radar_bot.py
       - name: Stand speichern (Branch "data", immer nur ein Commit)
         run: |
           cp bot/state.json /tmp/state.json
+          cp bot/obs.json /tmp/obs.json
           git config user.name "radar-bot"
           git config user.email "radar-bot@users.noreply.github.com"
           git checkout --orphan data-new
           git rm -rf -q . || true
           cp /tmp/state.json state.json
-          git add state.json
+          cp /tmp/obs.json obs.json
+          git add state.json obs.json
           git commit -q -m "Bot-Stand $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push -f origin data-new:data
       - name: Naechsten Lauf anstossen (zur naechsten Viertelstunde)
