@@ -983,11 +983,11 @@ function render(keep){
 }
 /* =====================  PAPER-BOT  ===================== */
 const BOTURL='https://raw.githubusercontent.com/benmuenker-sudo/trading-Tracker/data/state.json';
-const BOTL={mom:'Momentum / Abwärtstrend',brk:'Ausbruch / Abbruch',vol:'Volumen-Spike',rs:'Stärke / Schwäche vs. Bitcoin',smart:'Smart Money',small:'Kleiner Coin',trend:'Trend-Coin',news:'In den Nachrichten'};
-const LBL={mom:'Momentum',brk:'Ausbruch',vol:'Volumen-Spike',rs:'Stärke vs. Bitcoin',smart:'Smart Money',small:'Kleiner Coin',trend:'Trend-Coin',news:'In den Nachrichten'};
-const LBLS=Object.assign({},LBL,{mom:'Abwärtstrend',brk:'Abbruch nach unten',rs:'Schwäche vs. Bitcoin'});
-const BOTTABS=[['ov','Übersicht'],['pos','Positionen'],['trades','Trades'],['sig','Signale'],['tr','Trader'],['info','Info & Lernen']];
-S.bot=null;S.botErr='';S.botT=0;S.btab=LS.g('bottab','ov');S.btf='all';S.btn=25;S.sf='all';
+const BOTL={mom:'Momentum / Abwärtstrend',brk:'Ausbruch / Abbruch',vol:'Volumen-Spike',rs:'Stärke / Schwäche vs. Bitcoin',smart:'Smart Money',small:'Kleiner Coin',trend:'Trend-Coin',news:'In den Nachrichten',fund:'Funding (Gegenposition)',pull:'Rücksetzer im Trend'};
+const LBL={mom:'Momentum',brk:'Ausbruch',vol:'Volumen-Spike',rs:'Stärke vs. Bitcoin',smart:'Smart Money',small:'Kleiner Coin',trend:'Trend-Coin',news:'In den Nachrichten',fund:'Funding (Gegenposition)',pull:'Rücksetzer im Aufwärtstrend'};
+const LBLS=Object.assign({},LBL,{mom:'Abwärtstrend',brk:'Abbruch nach unten',rs:'Schwäche vs. Bitcoin',fund:'Funding (überfüllte Longs)',pull:'Erholung im Abwärtstrend'});
+const BOTTABS=[['ov','Übersicht'],['perf','Gewinn'],['pos','Positionen'],['trades','Trades'],['act','Aktivität'],['sig','Signale'],['tr','Trader'],['learn','Lernen'],['info','Markt']];
+S.bot=null;S.botErr='';S.botT=0;S.btab=LS.g('bottab','ov');S.btf='all';S.btn=25;S.sf='all';S.pf=LS.g('botpf','month');S.af='all';
 async function loadBot(force){
   if(!force&&Date.now()-S.botT<60000)return;S.botT=Date.now();
   const u=LS.g('boturl',BOTURL);
@@ -996,6 +996,7 @@ async function loadBot(force){
   if(S.tab==='bot')render(true);
 }
 const usd=n=>mp(n),sgn=(n,d=1)=>(n>=0?'+':'')+n.toFixed(d);
+const profTag=p=>`<span class="tag ${p==='swing'?'blue':''}">${p==='swing'?'Swing':'Kurz'}</span>`;
 const sideTag=s=>`<span class="tag ${s==='short'?'hot':'good'}">${s==='short'?'▼ Short':'▲ Long'}</span>`;
 const dts=t=>new Date(t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 const posPct=p=>p.side==='short'?(1-p.last/p.entry)*100:(p.last/p.entry-1)*100;
@@ -1040,15 +1041,15 @@ function botPos(b){
   if(!ps.length)return'<div class="glass sub">Gerade keine offene Position – der Bot wartet auf gute Gelegenheiten.</div>';
   const tot=ps.reduce((a,p)=>a+posUsd(p),0);
   return`<p class="sub">Unrealisiert gesamt: <b class="${tot>=0?'up':'down'}">${usd(tot)}</b> · nach Ergebnis sortiert</p><div class="grid">`+ps.map(p=>{const r=posPct(p),u=posUsd(p),sh=p.side==='short',fr=clamp(sh?(p.stop-p.last)/(p.stop-p.target):(p.last-p.stop)/(p.target-p.stop));
-    return`<div class="glass"><div class="hd"><div style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="sy">${esc(p.sym)}${p.kind==='dex'?' · DEX':''}${p.rank&&p.rank<9999?' · #'+p.rank:''}</div></div><div style="margin-left:auto;text-align:right">${sideTag(p.side)}<div class="sub" style="margin-top:4px">Score ${p.score}</div></div></div>
+    return`<div class="glass"><div class="hd"><div style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="sy">${esc(p.sym)}${p.kind==='dex'?' · DEX':''}${p.rank&&p.rank<9999?' · #'+p.rank:''}</div></div><div style="margin-left:auto;text-align:right">${sideTag(p.side)} ${profTag(p.profile)}<div class="sub" style="margin-top:4px">Score ${p.score}</div></div></div>
     <div class="big ${r>=0?'up':'down'}">${sgn(r)}% <span class="sub" style="font-size:14px;font-weight:500">${u>=0?'+':''}${usd(u)}</span></div>
     <div class="rng" title="Stopp ← Kurs → Ziel"><i style="left:${(fr*100).toFixed(0)}%"></i></div><div class="rw" style="margin-top:2px"><span>Stopp ${pr(p.stop)}</span><span>Ziel ${pr(p.target)}</span></div>
-    ${rw('Einstieg',pr(p.entry))}${rw('Jetzt',pr(p.last))}${rw('Einsatz',usd(p.size))}${rw('Seit',dts(p.t_in)+' ('+ago(Date.parse(p.t_in)).replace('vor ','')+')')}${sh?rw('Finanzierung',usd(p.funding||0)):''}
+    ${rw('Einstieg',pr(p.entry))}${rw('Jetzt',pr(p.last))}${rw('Einsatz',usd(p.size))}${rw('Haltedauer-Plan',(p.days||10)+' Tage · Stopp '+((p.stop_pct||0.08)*100).toFixed(0)+' %')}${rw('Seit',dts(p.t_in)+' ('+ago(Date.parse(p.t_in)).replace('vor ','')+')')}${sh?rw('Finanzierung',usd(p.funding||0)):''}
     <div class="tags">${(p.why||[]).map(w=>`<span class="tag blue">${esc(w)}</span>`).join('')}</div></div>`}).join('')+'</div>';
 }
 function botTradeList(list,max){
   return list.length?`<div class="glass lst" style="padding:6px 14px">`+list.slice(0,max).map(t=>`<details style="border-bottom:1px solid var(--line);padding:10px 0"><summary style="cursor:pointer;display:flex;align-items:center;gap:10px;list-style:none"><span class="n" style="flex:1;min-width:0;white-space:normal;overflow:visible"><b>${esc(t.sym)}</b> ${sideTag(t.side)} <span class="sub">${esc(t.reason)}</span><div class="sub" style="font-size:12px">${dts(t.t_out)} · ${t.days.toFixed(1)} Tg.</div></span><span style="text-align:right"><b class="${t.pnl>=0?'up':'down'}">${sgn(t.pnl_pct)}%</b><div class="sub" style="font-size:12px">${t.pnl>=0?'+':''}${usd(t.pnl)}</div></span></summary>
-    <div style="padding-top:10px">${rw('Name',esc(t.name))}${rw('Einstieg',pr(t.entry)+' ('+dts(t.t_in)+')')}${rw('Ausstieg',pr(t.exit)+' ('+dts(t.t_out)+')')}${rw('Einsatz',usd(t.size))}${rw('Gebühren/Finanzierung',usd(t.fees||0))}${rw('Bester / schlechtester Punkt',t.mfe!=null?sgn(t.mfe)+'% / '+sgn(t.mae)+'%':'–')}${rw('Score beim Einstieg',t.score)}
+    <div style="padding-top:10px">${rw('Name',esc(t.name))}${rw('Einstieg',pr(t.entry)+' ('+dts(t.t_in)+')')}${rw('Ausstieg',pr(t.exit)+' ('+dts(t.t_out)+')')}${rw('Einsatz',usd(t.size))}${rw('Gebühren/Finanzierung',usd(t.fees||0))}${rw('Bester / schlechtester Punkt',t.mfe!=null?sgn(t.mfe)+'% / '+sgn(t.mae)+'%':'–')}${rw('Score beim Einstieg',t.score)}${rw('Profil',t.profile==='swing'?'Swing (länger halten)':'Kurz')}
     <div class="tags">${(t.why||[]).map(w=>`<span class="tag blue">${esc(w)}</span>`).join('')}</div></div></details>`).join('')+'</div>':'';
 }
 function botTrades(b){
@@ -1079,24 +1080,112 @@ function botTr(b){
   return`<p class="sub">Erfolgreiche Trader auf Hyperliquid (öffentliche Daten), automatisch ausgewählt: Gewinn in Woche, Monat und gesamt, mindestens 100.000 $ Konto, keine Market-Maker. Deren Positionen sind ein Signal unter mehreren.</p>
   <h2>Letzte Bewegungen</h2>${ev?`<div class="glass lst">${ev}</div>`:'<div class="glass sub">Noch keine Bewegungen – sie erscheinen, sobald sich bei den Tradern etwas ändert.</div>'}<h2>Beobachtete Trader <small>${(b.traders||[]).length}</small></h2><div class="grid">${trd}</div>`;
 }
+/* ---- Gewinn nach Zeitraum (Tag, Woche, Monat, Jahr, Gesamt) ---- */
+function eqAt(cur,start,t){
+  if(!cur.length||t<=Date.parse(cur[0][0]))return[start,start];
+  let lo=0,hi=cur.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(Date.parse(cur[m][0])<=t)lo=m;else hi=m-1}
+  return[cur[lo][1],cur[lo][2]==null?start:cur[lo][2]];
+}
+const isoWeek=d=>{const x=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())),n=x.getUTCDay()||7;x.setUTCDate(x.getUTCDate()+4-n);return Math.ceil(((x-Date.UTC(x.getUTCFullYear(),0,1))/864e5+1)/7)};
+function perStart(k,now){const d=new Date(now),day=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  if(k==='day')return day;if(k==='week'){day.setDate(day.getDate()-((day.getDay()+6)%7));return day}
+  if(k==='month')return new Date(d.getFullYear(),d.getMonth(),1);if(k==='year')return new Date(d.getFullYear(),0,1);return new Date(0)}
+function perBuckets(k,first,now){
+  const n=new Date(now),out=[],L=(d,o)=>d.toLocaleDateString('de-DE',o);
+  if(k==='day')for(let i=29;i>=0;i--){const s=new Date(n.getFullYear(),n.getMonth(),n.getDate()-i),e=new Date(n.getFullYear(),n.getMonth(),n.getDate()-i+1);out.push({s:+s,e:+e,l:L(s,{weekday:'short',day:'2-digit',month:'2-digit'})})}
+  else if(k==='week'){const w=new Date(n.getFullYear(),n.getMonth(),n.getDate());w.setDate(w.getDate()-((w.getDay()+6)%7));for(let i=11;i>=0;i--){const s=new Date(w);s.setDate(s.getDate()-7*i);const e=new Date(s);e.setDate(e.getDate()+7);out.push({s:+s,e:+e,l:'KW '+isoWeek(s)+' · ab '+L(s,{day:'2-digit',month:'2-digit'})})}}
+  else{const f=new Date(first),from=k==='year'?0:(f.getFullYear()*12+f.getMonth()),m0=k==='year'?n.getFullYear()*12:from,cnt=(n.getFullYear()*12+n.getMonth())-m0;
+    for(let i=Math.min(cnt,35);i>=0;i--){const mm=n.getFullYear()*12+n.getMonth()-i,y=Math.floor(mm/12),m=mm%12,s=new Date(y,m,1),e=new Date(y,m+1,1);out.push({s:+s,e:+e,l:L(s,{month:'long',year:'numeric'})})}}
+  return out.filter(x=>x.e>first);
+}
+function botPerf(b){
+  const cur=b.equity_curve||[],now=Date.now(),first=cur.length?Date.parse(cur[0][0]):now,k=S.pf,tr=b.trades||[];
+  const [e1,b1]=eqAt(cur,b.start_equity,now),st0=+perStart(k,now),[e0,b0]=eqAt(cur,b.start_equity,st0);
+  const pnl=e1-e0,pc=e0?pnl/e0*100:0,btc=b0?(b1/b0-1)*100:null;
+  const inP=tr.filter(t=>Date.parse(t.t_out)>=st0),w=inP.filter(t=>t.pnl>0).length,real=inP.reduce((a,t)=>a+t.pnl,0),fees=inP.reduce((a,t)=>a+(t.fees||0),0);
+  const best=inP.length?inP.reduce((a,t)=>t.pnl>a.pnl?t:a):null,worst=inP.length?inP.reduce((a,t)=>t.pnl<a.pnl?t:a):null;
+  const tot=b.equity-b.start_equity;
+  const chips=[['day','Tag'],['week','Woche'],['month','Monat'],['year','Jahr'],['all','Gesamt']].map(([x,l])=>`<button class="chip ${k===x?'on':''}" onclick="S.pf='${x}';LS.s('botpf','${x}');render(true)">${l}</button>`).join('');
+  const names={day:'Heute',week:'Diese Woche',month:'Dieser Monat',year:'Dieses Jahr',all:'Seit Start'};
+  const bk=perBuckets(k==='day'?'day':k==='week'?'week':k,first,now).map(x=>{const[a0]=eqAt(cur,b.start_equity,x.s),[a1]=eqAt(cur,b.start_equity,Math.min(x.e,now)),t=tr.filter(y=>{const q=Date.parse(y.t_out);return q>=x.s&&q<x.e});
+    return Object.assign(x,{pnl:a1-a0,pc:a0?(a1-a0)/a0*100:0,n:t.length,w:t.filter(y=>y.pnl>0).length})}).reverse();
+  const mx=Math.max(1e-9,...bk.map(x=>Math.abs(x.pnl)));
+  const rows=bk.map(x=>{const w=Math.abs(x.pnl)/mx*50;return`<div style="margin:12px 0"><div class="rw" style="margin:0"><span>${esc(x.l)}</span><b class="${x.pnl>=0?'up':'down'}">${x.pnl>=0?'+':''}${usd(x.pnl)} <span class="sub">(${sgn(x.pc,2)}%)</span></b></div><div class="dv" style="margin-top:5px"><i style="left:${x.pnl>=0?50:50-w}%;width:${w}%;background:var(--${x.pnl>=0?'up':'down'})"></i></div><div class="mt">${x.n?x.n+' Trades geschlossen · '+x.w+' im Plus':'keine geschlossenen Trades'}</div></div>`}).join('');
+  return`<div class="glass" style="text-align:center"><div class="sub">Gesamtgewinn seit Start (${new Date(first).toLocaleDateString('de-DE')})</div><div class="big ${tot>=0?'up':'down'}" style="font-size:34px">${tot>=0?'+':''}${usd(tot)}</div><div class="${tot>=0?'up':'down'}">${sgn(tot/b.start_equity*100,2)}% auf ${usd(b.start_equity)} Startkapital</div></div>
+  <div class="bar" style="margin-top:14px">${chips}</div>
+  <div class="stats">${statBox(names[k],`<span class="${pnl>=0?'up':'down'}">${pnl>=0?'+':''}${usd(pnl)}</span>`,`<span class="${pc>=0?'up':'down'}">${sgn(pc,2)}%</span> Kapitalveränderung`)}${statBox('Bitcoin im Zeitraum',btc==null?'–':`<span class="${btc>=0?'up':'down'}">${sgn(btc,2)}%</span>`,btc==null?'':`Bot ${pc>=btc?'vorn':'zurück'} (${sgn(pc-btc,2)} Pkt.)`)}
+  ${statBox('Geschlossene Trades',inP.length,inP.length?`${w} Gewinne · ${Math.round(w/inP.length*100)}% Treffer`:'noch keine im Zeitraum')}${statBox('Realisiert',`<span class="${real>=0?'up':'down'}">${real>=0?'+':''}${usd(real)}</span>`,'Gebühren '+usd(fees))}</div>
+  ${best?`<div class="glass" style="margin-top:12px"><div class="rw"><span>Bester Trade</span><b class="up">${esc(best.sym)} ${sgn(best.pnl_pct)}% (${usd(best.pnl)})</b></div><div class="rw"><span>Schlechtester Trade</span><b class="down">${esc(worst.sym)} ${sgn(worst.pnl_pct)}% (${usd(worst.pnl)})</b></div></div>`:''}
+  <h2>${k==='day'?'Pro Tag <small>letzte 30 Tage</small>':k==='week'?'Pro Woche <small>letzte 12 Wochen</small>':k==='year'?'Pro Monat <small>dieses Jahr</small>':k==='month'?'Pro Monat <small>letzte 12 Monate</small>':'Pro Monat <small>seit Start</small>'}</h2><div class="glass">${rows||'<span class="sub">Noch keine Daten.</span>'}</div>
+  <p class="sub">Gewinn = Kapital am Ende minus Kapital am Anfang des Zeitraums (inklusive offener Positionen). Zeiten in deiner Ortszeit.</p>`;
+}
+/* ---- Aktivitätsprotokoll ---- */
+function botAct(b){
+  const A=(b.activity||[]).slice().reverse(),F={all:()=>true,open:a=>a.k==='open',close:a=>a.k==='close',learn:a=>a.k==='learn',market:a=>a.k==='market'};
+  const chips=[['all','Alles'],['open','Käufe'],['close','Verkäufe'],['learn','Gelerntes'],['market','Markt']].map(([k,l])=>`<button class="chip ${S.af===k?'on':''}" onclick="S.af='${k}';render(true)">${l}</button>`).join('');
+  const list=A.filter(F[S.af]).slice(0,120);let day='',h='';
+  const today=new Date().toDateString(),yest=new Date(Date.now()-864e5).toDateString();
+  list.forEach(a=>{const d=new Date(a.t),ds=d.toDateString(),lab=ds===today?'Heute':ds===yest?'Gestern':d.toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'2-digit'});
+    if(ds!==day){day=ds;h+=`<div class="sub" style="margin:14px 0 4px;font-weight:600">${lab}</div>`}
+    const ic=a.k==='open'?'🟢':a.k==='learn'?'🧠':a.k==='market'?'🌍':/\): \+/.test(a.x)?'✅':'🔻';
+    h+=`<div class="li" style="align-items:flex-start"><span style="font-size:16px">${ic}</span><span class="n" style="flex:1;white-space:normal;overflow:visible">${esc(a.x)}</span><span class="sub" style="font-size:12px;flex:none">${d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span></div>`});
+  return`<p class="sub">Was der Bot gerade tut: Käufe mit Begründung, Verkäufe mit Ergebnis, Marktfilter und was er dazugelernt hat.</p><div class="bar">${chips}</div><div class="glass lst">${h||'<span class="sub">Noch keine Einträge in dieser Auswahl.</span>'}</div>`;
+}
+/* ---- Lernen ---- */
+const SESSN={asia:'Asien (0–8 Uhr UTC)',eu:'Europa (8–14)',us:'USA (14–21)',late:'Spät (21–24)',weekend:'Wochenende'},WDN=['Mo','Di','Mi','Do','Fr','Sa','So'];
+const rc=v=>v==null?'<span class="sub">–</span>':`<span class="${v>=0?'up':'down'}">${sgn(v,2)}%</span>`;
+function learnLines(cur){
+  const pts=cur.filter(x=>x.cum_all!=null);if(pts.length<2)return'<p class="sub">Die Lernkurve erscheint, sobald Beobachtungen an mindestens zwei Tagen ausgewertet sind.</p>';
+  const w=600,h=190,pl=6,pr=6,pt=12,pb=20,vals=pts.flatMap(x=>[x.cum_all,x.cum_top]).filter(v=>v!=null).concat([0]);let mn=Math.min(...vals),mx=Math.max(...vals);const pad=(mx-mn)*.15||1;mn-=pad;mx+=pad;
+  const X=i=>(pl+i/(pts.length-1)*(w-pl-pr)).toFixed(1),Y=v=>(pt+(1-(v-mn)/(mx-mn))*(h-pt-pb)).toFixed(1),L=k=>pts.map((x,i)=>x[k]==null?null:(i?'L':'M')+X(i)+' '+Y(x[k])).filter(Boolean).join(' ').replace(/^L/,'M');
+  return`<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block"><line x1="${pl}" x2="${w-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)" stroke-dasharray="4 4"/><path d="${L('cum_all')}" fill="none" stroke="var(--mute)" stroke-width="1.8" stroke-dasharray="5 4"/><path d="${L('cum_top')}" fill="none" stroke="var(--acc2)" stroke-width="2.6" stroke-linejoin="round"/>
+  <text x="${pl}" y="${pt-2}" font-size="11" fill="var(--mute)">${sgn(mx-pad,1)}%</text><text x="${pl}" y="${h-pb-4}" font-size="11" fill="var(--mute)">${sgn(mn+pad,1)}%</text><text x="${pl}" y="${h-4}" font-size="11" fill="var(--mute)">${esc(pts[0].d.slice(5))}</text><text x="${w-pr}" y="${h-4}" font-size="11" text-anchor="end" fill="var(--mute)">${esc(pts[pts.length-1].d.slice(5))}</text></svg>
+  <div class="sub" style="margin-top:6px"><span style="color:var(--acc2)">━</span> Top-Signale (Score ≥ 45) &nbsp; <span>╍</span> alle beobachteten Signale &nbsp; · Ø Rendite nach 24 h, nach Kosten, aufsummiert über die Tage</div>`;
+}
+function botLearn(b){
+  const L=b.learn||{},st=b.stats||{},hz=L.horizon||{},w=b.weights||{},wl=w.long||{},ws=w.short||{},wt=b.w_trades||{},wo=b.w_obs||{},sa=b.sess_adj||{},pa=b.prof_adj||{};
+  if(L.n_done==null)return'<div class="glass sub">Die neuen Lerndaten erscheinen nach dem nächsten Bot-Lauf.</div>';
+  const need=Math.max(0,25-L.n_done),H=['4h','24h','72h','7d'],HN={'4h':'nach 4 Stunden','24h':'nach 24 Stunden','72h':'nach 3 Tagen','7d':'nach 7 Tagen'};
+  const hrow=H.map(k=>{const x=hz[k]||{};return`<div class="rw"><span>${HN[k]} <span class="sub">(${x.n||0} Signale)</span></span><b>Top ${rc(x.top)} · alle ${rc(x.all)}${x.hit_top!=null?` · ${x.hit_top}% im Plus`:''}</b></div>`}).join('');
+  const t24=hz['24h']&&hz['24h'].top,t72=hz['72h']&&hz['72h'].top,t7=hz['7d']&&hz['7d'].top;
+  let hint='Noch zu wenig ausgewertete Signale für eine Aussage.';
+  if(t7!=null&&t24!=null&&L.n_top>=15)hint=t7>t24+1?'Bei den Top-Signalen steigt die Rendite mit der Haltedauer: längeres Halten scheint sich zu lohnen (Swing-Profil).':t24>t7+1?'Bei den Top-Signalen ist der Gewinn nach 24 h besser als nach 7 Tagen: eher kürzer halten.':'Kein klarer Unterschied zwischen kurzer und langer Haltedauer.';
+  else if(t72!=null&&t24!=null&&L.n_top>=15)hint=t72>t24+0.5?'Nach 3 Tagen ist die Rendite der Top-Signale höher als nach 24 h – länger halten scheint besser.':'Nach 3 Tagen ist die Rendite nicht besser als nach 24 h.';
+  const bk=(L.buckets||[]).map(x=>`<div class="rw"><span>Score ${x.lo}–${x.hi} <span class="sub">(${x.n} Signale)</span></span><b>24 h ${rc(x.r24)} · 3 Tage ${rc(x.r72)}</b></div>`).join('');
+  const cr=side=>{const d=((L.by_comp||{})[side]||{}).comps||{};return Object.keys(LBL).map(k=>d[k]?`<div class="rw"><span>${esc((side==='short'?LBLS:LBL)[k])} <span class="sub">(${d[k].n})</span></span><b>${rc(d[k].r24)} <span class="sub">Vorteil ${d[k].edge==null?'–':sgn(d[k].edge,2)+' Pkt.'}</span></b></div>`:'').join('')||'<span class="sub">noch keine Daten</span>'};
+  const ss=Object.keys(SESSN).map(k=>{const x=(L.by_session||{})[k];return x?`<div class="rw"><span>${SESSN[k]} <span class="sub">(${x.n})</span></span><b>${rc(x.r24)} <span class="sub">Faktor ×${(sa[k]||1).toFixed(2)}</span></b></div>`:''}).join('')||'<span class="sub">noch keine Daten</span>';
+  const wd=WDN.map((n,i)=>{const x=(L.by_weekday||{})[i];return x?`<div class="rw"><span>${n} <span class="sub">(${x.n})</span></span><b>${rc(x.r24)}</b></div>`:''}).join('')||'<span class="sub">noch keine Daten</span>';
+  const bp=st.by_profile||{},op=L.by_profile||{};
+  const prof=['kurz','swing'].map(p=>{const g=bp[p]||{},o=op[p==='kurz'?'k':'s']||{};return`<div style="margin:8px 0"><b>${p==='swing'?'Swing (länger halten)':'Kurz'}</b> ${pa[p]!=null&&pa[p]!==1?`<span class="sub">Einsatz ×${pa[p].toFixed(2)}</span>`:''}<div class="rw"><span>Echte Trades</span><b>${g.n?`${g.n} · ${g.win_rate}% Treffer · Ø ${rc(g.avg_pct)} · Ø ${g.avg_days} Tage`:'noch keine'}</b></div><div class="rw"><span>Beobachtete Signale</span><b>${o.n?`${o.n} · 24 h ${rc(o.r24)} · 3 T ${rc(o.r72)} · 7 T ${rc(o.r7d)}`:'noch keine'}</b></div></div>`}).join('');
+  const wts=Object.keys(LBL).map(k=>`<div class="rw" style="flex-wrap:wrap"><span>${esc(LBL[k])}</span><b>Long ×${(wl[k]||1).toFixed(2)} <span class="sub">(Trades ×${((wt.long||{})[k]||1).toFixed(2)} · Beob. ×${((wo.long||{})[k]||1).toFixed(2)})</span> · Short ×${(ws[k]||1).toFixed(2)}</b></div>`).join('');
+  return`<div class="glass"><b>So lernt der Bot</b><p class="sub" style="margin:8px 0 0">Zwei Quellen: <b>${(b.trades||[]).length} echte Papier-Trades</b> und <b>${L.n_done+L.n_open} beobachtete Signale</b> (${L.n_done} ausgewertet, ${L.n_open} laufen noch). Die besten Signale jedes Laufs werden auch dann notiert, wenn der Bot nicht kauft, und nach 4 Stunden, 24 Stunden, 3 und 7 Tagen mit dem echten Kurs verglichen. Daraus lernt er schneller als nur aus den wenigen echten Trades: welche Signalarten, welche Tageszeiten (Handelssessions) und welche Haltedauern funktionieren.${need?` <b>Noch ${need} ausgewertete Beobachtungen bis zum ersten Lernschritt.</b>`:''}</p></div>
+  <h2>Lernkurve</h2><div class="glass">${learnLines(L.curve||[])}</div>
+  <h2>Wie lange halten? <small>Rendite der Top-Signale nach Haltedauer, nach Kosten</small></h2><div class="glass">${hrow}<p class="sub" style="margin:10px 0 0">${hint}</p></div>
+  <h2>Sagt der Score etwas voraus? <small>höhere Punkte sollten bessere Renditen bringen</small></h2><div class="glass">${bk}</div>
+  <div class="cols"><div><h2>Signalarten Long <small>Ø nach 24 h bei starkem Signal</small></h2><div class="glass">${cr('long')}</div></div><div><h2>Signalarten Short</h2><div class="glass">${cr('short')}</div></div></div>
+  <div class="cols"><div><h2>Handelssessions <small>jetzt: ${esc(SESSN[(b.market||{}).session]||'–')}</small></h2><div class="glass">${ss}<p class="sub" style="margin:8px 0 0">Der Faktor (0,8–1,2) verändert die Punktzahl je nach Tageszeit, sobald genug Daten da sind (ab 40 Beobachtungen je Session).</p></div></div><div><h2>Wochentage</h2><div class="glass">${wd}</div></div></div>
+  <h2>Haltedauer-Profile</h2><div class="glass">${prof}<p class="sub" style="margin:8px 0 0">Stabile Trends bei größeren Coins laufen als „Swing“: weiterer Stopp (mind. 14 %), Trailing erst ab +20 %, Ziel +60 %, bis zu 30 Tage. Schnelle Ausbrüche bleiben „Kurz“ (Stopp 8–25 % je nach Schwankung, bis 10 Tage). Bei starken Schwankungen wird der Stopp weiter gesetzt und der Einsatz kleiner (höchstens 0,4 % Kapitalrisiko pro Trade).</p></div>
+  <h2>Gewichte <small>1,00 = Standard (0,4–1,6). Gewicht = Lernen aus Trades × Lernen aus Beobachtungen</small></h2><div class="glass">${wts}</div>
+  <h2>Alle Regeln</h2><div class="glass sub" style="line-height:1.7">Startkapital 10.000 $ · max. 12 Positionen, davon max. 4 Shorts, max. 2 neue pro Lauf · 1–3 % je Einstieg (Short 70 %, DEX-Token ~35 %), zusätzlich begrenzt durch 0,4 % Kapitalrisiko · Gebühr 0,1 % pro Seite plus Kursabweichung nach Coin-Größe · Shorts: 0,03 % Finanzierung pro Tag · Coins, die schon über 15 % an einem Tag gestiegen sind, werden abgewertet (nicht oben kaufen) · Keine neuen Longs bei Bitcoin −6 % (24 h) oder −15 % (7 Tage) · Keine neuen Shorts bei Bitcoin +4 % (24 h) · derselbe Coin erst nach 3 Tagen wieder · Der Bot läuft etwa alle 15 Minuten auf GitHub-Servern; Stopps werden nur bei jedem Lauf geprüft.</div>`;
+}
 function botInfo(b){
-  const inf=b.info||{},st=b.stats||{},w=b.weights||{},wl=w.long||w,ws=w.short||{},bc=st.by_comp||{},cl=bc.long||bc,cs=bc.short||{};
-  const row=(k,d)=>d?` <span class="sub">(${d.n}× · ${d.win_rate}% · Ø ${sgn(d.avg_pct||0)}%)</span>`:'';
-  const wts=Object.keys(BOTL).map(k=>`<div class="rw" style="flex-wrap:wrap"><span>${BOTL[k]}</span><b>Long ×${(wl[k]||1).toFixed(2)}${row(k,cl[k])} · Short ×${((ws[k])||1).toFixed(2)}${row(k,cs[k])}</b></div>`).join('');
-  const hl=(inf.headlines||[]).map(h=>`<div class="li"><span class="n" style="white-space:normal">${esc(h.title)}<div class="sub" style="font-size:12px">${esc(h.src)} · ${ago(Date.parse(h.t))}</div></span></div>`).join('');
+  const inf=b.info||{},m=b.market||{},fu=inf.funding||{};
+  const hl=(inf.headlines||[]).map(h=>`<div class="li"><span class="n" style="white-space:normal;overflow:visible">${esc(h.title)}<div class="sub" style="font-size:12px">${esc(h.src)} · ${ago(Date.parse(h.t))}</div></span></div>`).join('');
+  const fr=a=>(a||[]).map(x=>`<div class="rw"><span>${esc(x.sym)} <span class="sub">OI ${usd(x.oi)}</span></span><b class="${x.f8>=0?'down':'up'}">${sgn(x.f8,4)}% / 8 h</b></div>`).join('')||'<p class="sub">keine Daten</p>';
   return`<div class="cols"><div class="glass"><b>Trend-Coins (CoinGecko)</b>${(inf.trending||[]).map(x=>`<div class="rw"><span>${esc(x.name)} <span class="sub">${esc(x.sym)}</span></span><b>${pt(x.c24h)}</b></div>`).join('')||'<p class="sub">keine Daten</p>'}</div>
    <div class="glass"><b>Oft in den Nachrichten (24 h)</b>${(inf.buzz||[]).map(x=>`<div class="rw"><span>${esc(x.name)} <span class="sub">${esc(x.sym)}</span></span><b>${x.n}× genannt</b></div>`).join('')||'<p class="sub">keine Treffer</p>'}</div></div>
-  <h2>Aktuelle Schlagzeilen</h2><div class="glass lst">${hl||'<span class="sub">keine Daten</span>'}</div>
-  <h2>Was der Bot gelernt hat <small>Gewicht je Signalart, 1,00 = Standard (0,5–1,5). Gelernt wird erst ab 8 Trades pro Signalart und Richtung.</small></h2><div class="glass">${wts}</div>
-  <h2>Regeln <small>zum Nachlesen</small></h2><div class="glass sub" style="line-height:1.7">Startkapital 10.000 $ · max. 12 Positionen, davon max. 4 Shorts · 1–3 % je Einstieg (Short 70 %, DEX-Token ~35 %) · Gebühr 0,1 % pro Seite plus Kursabweichung nach Coin-Größe · Shorts: 0,03 % Finanzierung pro Tag · Stopp 8 % · Ziel +30 % (Short −25 %) · Trailing ab +10 % mit 8 % Abstand · Zeit-Stopp nach 10 Tagen unter +5 % · Keine neuen Longs bei Bitcoin −6 % (24 h) oder −15 % (7 Tage) · Keine neuen Shorts bei Bitcoin +4 % (24 h) · derselbe Coin erst nach 3 Tagen wieder. Der Bot läuft etwa alle 15 Minuten auf GitHub-Servern, unabhängig von deinem PC (GitHub kann Läufe verspäten); Stopps werden nur bei jedem Lauf geprüft.</div>`;
+  <div class="cols" style="margin-top:14px"><div class="glass"><b>Überfüllte Longs <span class="sub">(hohes Funding)</span></b>${fr(fu.high)}</div><div class="glass"><b>Überfüllte Shorts <span class="sub">(negatives Funding)</span></b>${fr(fu.low)}</div></div>
+  <p class="sub" style="margin-top:8px">Funding von Hyperliquid: positiv = Long-Trader zahlen Short-Tradern (viele setzen auf steigende Kurse). Der Bot nutzt das als Gegensignal.</p>
+  <div class="glass" style="margin-top:14px"><div class="rw"><span>Aktuelle Handelssession</span><b>${esc(SESSN[m.session]||'–')}${m.session_mult&&m.session_mult!==1?` · Faktor ×${m.session_mult}`:''}</b></div><div class="rw"><span>Fear &amp; Greed</span><b>${inf.fng?inf.fng.value+' · '+esc(inf.fng.label):'–'}</b></div></div>
+  <h2>Aktuelle Schlagzeilen</h2><div class="glass lst">${hl||'<span class="sub">keine Daten</span>'}</div>`;
 }
 function vBot(){
   const b=S.bot;
   const url=`<details style="margin-top:14px"><summary class="sub" style="cursor:pointer">Datenquelle ändern</summary><div class="bar" style="margin-top:8px"><input class="inp" id="bu" value="${esc(LS.g('boturl',BOTURL))}" style="min-width:260px"><button class="btn s" onclick="LS.s('boturl',$('bu').value.trim()||BOTURL);S.botT=0;loadBot(true)">Speichern</button></div></details>`;
   if(!b)return`<h2>🤖 Paper-Bot <small>Simulation – kein echtes Geld</small></h2><div class="glass"><p>${S.botErr?'Noch keine Bot-Daten gefunden ('+esc(S.botErr)+').':'Lade Bot-Daten …'}</p><p class="sub">Der Bot läuft automatisch auf GitHub. Falls er noch nie lief: auf GitHub im Repository ▸ <b>Actions</b> ▸ „Paper-Trading-Bot“ ▸ <b>Run workflow</b>. Danach hier neu laden.</p><button class="btn" onclick="loadBot(true)">Neu laden</button>${url}</div>`;
   const age=Date.now()-Date.parse(b.updated),stale=age>40*60*1000?`<div class="note" style="border-color:var(--down)">⚠️ Der Bot hat seit <b>${ago(Date.parse(b.updated)).replace('vor ','')}</b> keine neuen Daten geschrieben (normal: alle 15 Minuten). Die Anzeige ist also nicht aktuell. Auf GitHub ▸ Actions ▸ „Paper-Trading-Bot“ ▸ <b>Run workflow</b> startet ihn neu.</div>`:'';
-  const tabs=BOTTABS.map(([k,l])=>`<button class="chip ${S.btab===k?'on':''}" onclick="botTab('${k}')">${l}${k==='pos'?` <span class="sub">${(b.positions||[]).length}</span>`:k==='trades'?` <span class="sub">${(b.trades||[]).length}</span>`:''}</button>`).join('');
-  const body={ov:botOv,pos:botPos,trades:botTrades,sig:botSig,tr:botTr,info:botInfo}[S.btab]||botOv;
+  const tabs=BOTTABS.map(([k,l])=>`<button class="chip ${S.btab===k?'on':''}" onclick="botTab('${k}')">${l}${k==='pos'?` <span class="sub">${(b.positions||[]).length}</span>`:k==='trades'?` <span class="sub">${(b.trades||[]).length}</span>`:k==='learn'&&(b.learn||{}).n_done!=null?` <span class="sub">${b.learn.n_done}</span>`:''}</button>`).join('');
+  const body={ov:botOv,perf:botPerf,pos:botPos,trades:botTrades,act:botAct,sig:botSig,tr:botTr,learn:botLearn,info:botInfo}[S.btab]||botOv;
   return`<h2>🤖 Paper-Bot <small>Simulation – kein echtes Geld · Lauf ${b.runs} · Stand ${ago(Date.parse(b.updated))}</small><span class="r"><a href="#" onclick="loadBot(true);return false">↻ neu laden</a></span></h2>
   ${stale}
   <div class="bar" style="flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px">${tabs}</div>

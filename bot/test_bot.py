@@ -13,9 +13,10 @@ def market(overrides=None, n=300):
     return cs
 
 class Fake:
-    def __init__(self, mk, lb=None, pos=None, trend=None, news=None, fng=None):
+    def __init__(self, mk, lb=None, pos=None, trend=None, news=None, fng=None, fund=None):
         self.mk, self.lb, self.pos = mk, lb, pos or {}
-        self._trend, self._news, self._fng = trend or [], news or [], fng
+        self._trend, self._news, self._fng, self._fund = trend or [], news or [], fng, fund or {}
+    def funding(self): return self._fund
     def trending(self): return self._trend
     def news(self): return self._news
     def fng(self): return self._fng
@@ -30,7 +31,7 @@ T0 = 1_700_000_000
 class Engine(unittest.TestCase):
     def test_entry_fees_slippage_and_stop(self):
         st = rb.new_state()
-        hot = {5: dict(price=2.0, c1h=1.5, c24h=12.0, c7d=35.0, c30d=100.0, vol=4e8, mcap=1e9)}
+        hot = {5: dict(price=2.0, c1h=1.5, c24h=13.0, c7d=35.0, c30d=100.0, vol=4e8, mcap=1e9)}
         rb.run(st, Fake(market(hot)), ts=T0)
         self.assertEqual(len(st["positions"]), 1)
         p = st["positions"][0]
@@ -50,7 +51,7 @@ class Engine(unittest.TestCase):
 
     def test_target_and_trailing(self):
         st = rb.new_state()
-        hot = {5: dict(price=2.0, c1h=1.5, c24h=12.0, c7d=35.0, c30d=100.0, vol=4e8, mcap=1e9)}
+        hot = {5: dict(price=2.0, c1h=1.5, c24h=13.0, c7d=35.0, c30d=100.0, vol=4e8, mcap=1e9)}
         rb.run(st, Fake(market(hot)), ts=T0)
         e = st["positions"][0]["entry"]
         rb.run(st, Fake(market({5: dict(price=e * 1.2, c24h=0, c1h=0, c7d=0, c30d=0)})), ts=T0 + 1800)   # +20 %
@@ -61,8 +62,8 @@ class Engine(unittest.TestCase):
 
     def test_market_filter_and_min_volume(self):
         st = rb.new_state()
-        hot = {5: dict(price=2.0, c1h=1.5, c24h=12.0, c7d=35.0, c30d=100.0, vol=4e8, mcap=1e9),
-               6: dict(price=2.0, c1h=1.5, c24h=12.0, c7d=35.0, c30d=100.0, vol=1e5, mcap=1e6)}
+        hot = {5: dict(price=2.0, c1h=1.5, c24h=13.0, c7d=35.0, c30d=100.0, vol=4e8, mcap=1e9),
+               6: dict(price=2.0, c1h=1.5, c24h=13.0, c7d=35.0, c30d=100.0, vol=1e5, mcap=1e6)}
         bad = {0: dict(c24h=-8.0)}
         bad.update(hot)
         rb.run(st, Fake(market(bad)), ts=T0)
@@ -99,10 +100,12 @@ class Engine(unittest.TestCase):
 
 DROP = {5: dict(price=2.0, c1h=-1.5, c24h=-12.0, c7d=-35.0, c30d=-60.0, vol=4e8, mcap=1e9)}
 
+FUND = {"C5": {"f8": 0.0004, "oi": 1e7}}
+
 class Shorts(unittest.TestCase):
     def test_short_profit_with_costs(self):
         st = rb.new_state()
-        rb.run(st, Fake(market(DROP)), ts=T0)
+        rb.run(st, Fake(market(DROP), fund=FUND), ts=T0)
         shorts = [p for p in st["positions"] if p["side"] == "short"]
         self.assertEqual(len(shorts), 1)
         p = shorts[0]
@@ -111,20 +114,20 @@ class Shorts(unittest.TestCase):
         self.assertLess(p["target"], p["entry"])
         self.assertAlmostEqual(st["cash"], rb.START_EQUITY - p["size"] - p["fee_in"], 4)
         # Kurs faellt weiter auf unter das Ziel -> Gewinn
-        rb.run(st, Fake(market({5: dict(price=p["entry"] * 0.70, c1h=0, c24h=0, c7d=0, c30d=0)})), ts=T0 + 86400)
+        gain = 1 - p["target"] / p["entry"]                    # Ziel je nach Profil
+        rb.run(st, Fake(market({5: dict(price=p["target"] * 0.99, c1h=0, c24h=0, c7d=0, c30d=0)})), ts=T0 + 86400)
         t = st["trades"][0]
         self.assertEqual((t["side"], t["reason"]), ("short", "Ziel erreicht"))
-        self.assertGreater(t["pnl"], 0)
-        self.assertGreater(t["pnl"], 0.2 * t["size"])          # ~ +30 % minus Kosten
-        self.assertLess(t["pnl"], 0.31 * t["size"])
+        self.assertGreater(t["pnl"], (gain - 0.06) * t["size"])
+        self.assertLess(t["pnl"], (gain + 0.02) * t["size"])
         self.assertAlmostEqual(st["equity"], st["cash"], 2)
         self.assertGreater(t["fees"], 0)                       # inkl. Finanzierung
 
     def test_short_stop_loss(self):
         st = rb.new_state()
-        rb.run(st, Fake(market(DROP)), ts=T0)
+        rb.run(st, Fake(market(DROP), fund=FUND), ts=T0)
         p = [x for x in st["positions"] if x["side"] == "short"][0]
-        rb.run(st, Fake(market({5: dict(price=p["entry"] * 1.12, c1h=0, c24h=0, c7d=0, c30d=0)})), ts=T0 + 1800)
+        rb.run(st, Fake(market({5: dict(price=p["stop"] * 1.01, c1h=0, c24h=0, c7d=0, c30d=0)})), ts=T0 + 1800)
         t = st["trades"][0]
         self.assertEqual((t["side"], t["reason"]), ("short", "Stopp"))
         self.assertLess(t["pnl"], 0)
@@ -132,7 +135,7 @@ class Shorts(unittest.TestCase):
 
     def test_equity_marks_short_unrealized(self):
         st = rb.new_state()
-        rb.run(st, Fake(market(DROP)), ts=T0)
+        rb.run(st, Fake(market(DROP), fund=FUND), ts=T0)
         p = [x for x in st["positions"] if x["side"] == "short"][0]
         rb.run(st, Fake(market({5: dict(price=p["entry"] * 0.9, c1h=0, c24h=0, c7d=0, c30d=0)})), ts=T0 + 1800)
         self.assertEqual(len(st["positions"]), 1)
@@ -142,11 +145,11 @@ class Shorts(unittest.TestCase):
         st = rb.new_state()
         o = dict(DROP)
         o[0] = dict(c24h=6.0)                                  # Bitcoin pumpt
-        rb.run(st, Fake(market(o)), ts=T0)
+        rb.run(st, Fake(market(o), fund=FUND), ts=T0)
         self.assertEqual([p for p in st["positions"] if p["side"] == "short"], [])
         st = rb.new_state()
         small = {250: dict(price=2.0, c1h=-1.5, c24h=-12.0, c7d=-35.0, c30d=-60.0, vol=4e8, mcap=1e9, rank=700)}
-        rb.run(st, Fake(market(small)), ts=T0)
+        rb.run(st, Fake(market(small), fund=FUND), ts=T0)
         self.assertEqual([p for p in st["positions"] if p["side"] == "short"], [])
 
     def test_short_learning_separate(self):
@@ -209,6 +212,143 @@ class Extras(unittest.TestCase):
         self.assertEqual(st["trades"][0]["side"], "long")
         rb.run(st, Fake(market()), ts=T0 + 1800)               # laeuft mit altem Stand durch
         self.assertIn("by_side", st["stats"])
+
+import os, tempfile, json
+
+class Smarter(unittest.TestCase):
+    def test_no_buying_the_top(self):
+        base = dict(price=2.0, c1h=1.5, c7d=35.0, c30d=100.0, vol=4e8, mcap=1e9)
+        calm = rb.components(coin(5, **dict(base, c24h=10.0)), 1.0, {}, "long")
+        hot = coin(5, **dict(base, c24h=30.0))
+        self.assertGreater(calm["brk"], rb.components(hot, 1.0, {}, "long")["brk"])
+        self.assertLess(rb.heat_factor(hot, "long"), 0.7)
+        self.assertEqual(rb.heat_factor(coin(5, c24h=8.0), "long"), 1.0)
+        # am Tageshoch nach starkem Anstieg zusaetzlicher Abschlag
+        top = dict(coin(5, c24h=12.0), h24=2.0, l24=1.5, price=2.0)
+        self.assertLess(rb.heat_factor(top, "long"), 1.0)
+
+    def test_pullback_component(self):
+        c = dict(coin(5, c24h=1.0, c7d=15.0, c30d=40.0), h24=2.1, l24=1.9, price=2.0)   # Mitte der Spanne im Aufwaertstrend
+        c2 = dict(c, price=2.1)                                                         # am Hoch
+        self.assertGreater(rb.components(c, 1.0, {}, "long")["pull"], 0.5)
+        self.assertEqual(rb.components(c2, 1.0, {}, "long")["pull"], 0.0)
+        self.assertEqual(rb.components(coin(5), 1.0, {}, "long")["pull"], 0.0)          # ohne Spannendaten
+
+    def test_profiles_and_risk_sizing(self):
+        trend = coin(5, c24h=4.0, c7d=15.0, c30d=40.0, rank=50)
+        spike = coin(6, c24h=18.0, c7d=60.0, c30d=40.0, rank=50)
+        self.assertEqual(rb.choose_profile(trend, "long"), "swing")
+        self.assertEqual(rb.choose_profile(spike, "long"), "kurz")
+        self.assertEqual(rb.choose_profile(dict(trend, kind="dex"), "long"), "kurz")
+        self.assertEqual(rb.stop_for(trend, "swing"), 0.14)
+        wild = rb.stop_for(coin(7, c24h=30.0, c7d=10), "kurz")             # stark schwankend -> weiterer Stopp
+        self.assertGreater(wild, 0.08)
+        self.assertLessEqual(wild, rb.MAX_STOP)
+        st = rb.new_state()
+        st["cash"] = 1e6
+        p = rb.open_position(st, trend, rb.components(trend, 1.0, {}), 60, 1000, T0, "long", "swing", 0.14)
+        self.assertEqual((p["profile"], p["days"]), ("swing", 30))
+        self.assertAlmostEqual(p["stop"] / p["entry"], 0.86, 3)
+        self.assertAlmostEqual(p["target"] / p["entry"], 1.60, 3)
+        self.assertTrue(st["activity"] and st["activity"][-1]["k"] == "open")
+
+    def test_swing_position_is_held_longer(self):
+        st = rb.new_state()
+        c = coin(5, price=2.0, c1h=0.5, c24h=4.0, c7d=15.0, c30d=40.0, vol=1e8, mcap=5e8, rank=40)
+        st["cash"] = 10000.0
+        rb.open_position(st, c, rb.components(c, 1.0, {}), 60, 300, T0, "long", "swing", 0.14)
+        e = st["positions"][0]["entry"]
+        # -10 %: ein "kurz"-Stopp (8 %) haette ausgeloest, "swing" haelt
+        rb.check_exits(st, {"coin5": e * 0.90}, T0 + 3600)
+        self.assertEqual(len(st["positions"]), 1)
+        # nach 12 Tagen nur +2 %: kurz waere raus (Zeit-Stopp), swing darf bleiben
+        rb.check_exits(st, {"coin5": e * 1.02}, T0 + 12 * 86400)
+        self.assertEqual(len(st["positions"]), 1)
+        rb.check_exits(st, {"coin5": e * 1.02}, T0 + 31 * 86400)
+        self.assertEqual(st["trades"][0]["reason"], "Zeit-Stopp")
+        self.assertEqual(st["trades"][0]["profile"], "swing")
+        self.assertEqual(st["activity"][-1]["k"], "close")
+
+    def test_observe_resolve_and_learn(self):
+        st = rb.new_state()
+        warm = {5: dict(price=2.0, c1h=1.5, c24h=13.0, c7d=35.0, c30d=100.0, vol=4e8, mcap=1e9)}
+        rb.run(st, Fake(market(warm)), ts=T0)
+        self.assertGreaterEqual(len(st["obs"]["open"]), 1)
+        o = st["obs"]["open"][0]
+        self.assertEqual(len(o["c"]), len(rb.COMP_ORDER))
+        n0 = len(st["obs"]["open"])
+        rb.run(st, Fake(market(warm)), ts=T0 + 1800)           # gleiches Signal wird nicht sofort erneut notiert
+        self.assertEqual(len([x for x in st["obs"]["open"] if x["i"] == o["i"] and x["s"] == o["s"]]), 1)
+        # nach 25 h: Kurs +10 % -> positive Rendite nach 4 h und 24 h (nach Kosten)
+        up = {5: dict(price=2.2, c1h=0, c24h=0, c7d=0, c30d=0)}
+        rb.run(st, Fake(market(up)), ts=T0 + 25 * 3600)
+        mine = [x for x in st["obs"]["open"] + st["obs"]["done"] if x["i"] == "coin5" and x["s"] == "L"][0]
+        self.assertGreater(mine["r"]["24h"][0], 5.0)
+        self.assertLess(mine["r"]["24h"][0], 10.0)             # Kosten sind abgezogen
+        # nach 8 Tagen komplett ausgewertet -> "done"
+        rb.run(st, Fake(market(up)), ts=T0 + 8 * 86400)
+        self.assertTrue(any(x["i"] == "coin5" for x in st["obs"]["done"]))
+        self.assertIn("horizon", st["learn"])
+        self.assertIn("curve", st["learn"])
+
+    def test_learn_obs_weights_and_sessions(self):
+        st = rb.new_state()
+        idx = rb.COMP_ORDER.index("mom")
+        for i in range(100):
+            good = i % 2 == 0
+            c = [0] * len(rb.COMP_ORDER)
+            c[idx] = 90 if good else 0
+            st["obs"]["done"].append({"i": "x%d" % i, "y": "X", "t": T0 + i, "p": 1, "b": 1, "s": "L", "sc": 50, "c": c, "k": 0.5,
+                                     "se": "us" if good else "asia", "wd": 1, "pf": "k",
+                                     "r": {"24h": [6.0 if good else -4.0, 0], "72h": [6.0, 0]}})
+        rb.learn_obs(st)
+        self.assertGreater(st["w_obs"]["long"]["mom"], 1.0)
+        self.assertEqual(st["w_obs"]["short"]["mom"], 1.0)
+        self.assertGreater(st["sess_adj"]["us"], 1.0)
+        self.assertLess(st["sess_adj"]["asia"], 1.0)
+        for v in st["sess_adj"].values():
+            self.assertTrue(0.8 <= v <= 1.2)
+        rb.apply_weights(st, T0)
+        self.assertGreater(st["weights"]["long"]["mom"], 1.0)
+        self.assertTrue(any(a["k"] == "learn" for a in st["activity"]))
+        ls = rb.learn_stats(st)
+        self.assertEqual(ls["n_done"], 100)
+        self.assertGreater(ls["by_comp"]["long"]["comps"]["mom"]["edge"], 0)
+        self.assertIn("us", ls["by_session"])
+
+    def test_session_of(self):
+        self.assertEqual(rb.session_of(1_790_000_000 - 3 * 86400 + 3600 * 0), rb.session_of(1_790_000_000 - 3 * 86400))
+        mon = 1_790_000_000 - (1_790_000_000 % 86400)          # ein Tag um 00:00 UTC
+        import datetime as dt
+        while dt.datetime.fromtimestamp(mon, dt.timezone.utc).weekday() != 1:   # Dienstag
+            mon += 86400
+        self.assertEqual(rb.session_of(mon + 3 * 3600), "asia")
+        self.assertEqual(rb.session_of(mon + 10 * 3600), "eu")
+        self.assertEqual(rb.session_of(mon + 16 * 3600), "us")
+        self.assertEqual(rb.session_of(mon + 22 * 3600), "late")
+        self.assertEqual(rb.session_of(mon + 4 * 86400 + 10 * 3600), "weekend")
+
+    def test_save_load_splits_obs_file(self):
+        st = rb.new_state()
+        st["obs"]["open"].append({"i": "a", "y": "A", "t": T0, "p": 1, "b": 1, "s": "L", "sc": 50, "c": [0] * 10, "k": 1, "se": "us", "wd": 1, "pf": "k", "r": {}})
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "state.json")
+            rb.save_state(st, path)
+            with open(path) as f:
+                self.assertNotIn("obs", json.load(f))
+            self.assertTrue(os.path.exists(os.path.join(d, "obs.json")))
+            st2 = rb.load_state(path)
+            self.assertEqual(st2["obs"]["open"][0]["i"], "a")
+            os.remove(os.path.join(d, "obs.json"))
+            self.assertEqual(rb.load_state(path)["obs"]["open"], [])    # fehlende Datei ist kein Fehler
+
+    def test_funding_crowding(self):
+        c = coin(5, rank=20)
+        crowded = {"C5": {"f8": 0.0006, "oi": 1e7}}
+        neg = {"C5": {"f8": -0.0006, "oi": 1e7}}
+        self.assertEqual(rb.components(c, 1.0, {}, "long", fund=crowded)["fund"], 0.0)
+        self.assertEqual(rb.components(c, 1.0, {}, "short", fund=crowded)["fund"], 1.0)
+        self.assertEqual(rb.components(c, 1.0, {}, "long", fund=neg)["fund"], 1.0)
 
 class Traders(unittest.TestCase):
     def row(self, addr, av=500000, wp=1e4, mp=5e4, ap=3e5, wr=.05, mr=.3, ar=1.0, vlm=1e6):
